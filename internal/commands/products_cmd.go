@@ -2,7 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -24,6 +26,7 @@ func newProductsSearchCmd() *cobra.Command {
 	var (
 		search, deliveryMethod, userID, categoryID string
 		pageIndex, pageSize                        int
+		rawOutput                                  bool
 	)
 	c := &cobra.Command{
 		Use:   "search",
@@ -55,9 +58,13 @@ func newProductsSearchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printJSON(result)
+			if rawOutput || strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			return printProductSearchTable(result)
 		},
 	}
+	c.Flags().BoolVar(&rawOutput, "raw", false, tr("Show full API response", "Pokaż pełną odpowiedź API"))
 	c.Flags().StringVar(&search, "search", "", tr("Search phrase.", "Fraza wyszukiwania."))
 	c.Flags().StringVar(&categoryID, "category-id", "", tr("Frisco categoryId (narrows listing, e.g. 18703 Warzywa i owoce).", "Frisco categoryId (zawęża listę, np. 18703 Warzywa i owoce)."))
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
@@ -142,5 +149,55 @@ func newProductsNutritionCmd() *cobra.Command {
 	c.Flags().BoolVar(&rawOutput, "raw", false, tr("Show full API response", "Pokaż pełną odpowiedź API"))
 	_ = c.MarkFlagRequired("product-id")
 	return c
+}
+
+func printProductSearchTable(result any) error {
+	m, ok := result.(map[string]any)
+	if !ok {
+		return printPretty(result)
+	}
+
+	// Pagination info.
+	pageIndex, _ := m["pageIndex"].(float64)
+	pageCount, _ := m["pageCount"].(float64)
+	totalCount, _ := m["totalCount"].(float64)
+	fmt.Printf("Page %.0f/%.0f (%.0f results)\n\n", pageIndex, pageCount, totalCount)
+
+	rawProducts, _ := m["products"].([]any)
+	if len(rawProducts) == 0 {
+		fmt.Println(tr("No products found.", "Nie znaleziono produktów."))
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "id\tname\tbrand\tprice\tavailable")
+	for _, raw := range rawProducts {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		id := cellValue(entry["productId"])
+		inner, _ := entry["product"].(map[string]any)
+
+		name := ""
+		brand := ""
+		price := ""
+		available := ""
+		if inner != nil {
+			name = shared.LocalizedString(inner["name"])
+			brand, _ = inner["brand"].(string)
+			if priceObj, ok := inner["price"].(map[string]any); ok {
+				if pv, ok := priceObj["price"].(float64); ok {
+					price = fmt.Sprintf("%.2f", pv)
+				}
+			}
+			if av, ok := inner["isAvailable"].(bool); ok {
+				available = fmt.Sprintf("%v", av)
+			}
+		}
+
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", id, name, brand, price, available)
+	}
+	return w.Flush()
 }
 
