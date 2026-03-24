@@ -3,7 +3,6 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -263,37 +262,6 @@ func loadJSONFile(path string) (any, error) {
 		return nil, err
 	}
 	return v, nil
-}
-
-// parseJSONOrKV mirrors Python parse_json_or_kv_data (no trailing newline-only edge cases).
-func parseJSONOrKV(raw string) (any, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, nil
-	}
-	if strings.HasPrefix(raw, "{") || strings.HasPrefix(raw, "[") {
-		var v any
-		if err := json.Unmarshal([]byte(raw), &v); err != nil {
-			return nil, err
-		}
-		return v, nil
-	}
-	vals, err := url.ParseQuery(raw)
-	if err != nil {
-		return raw, nil
-	}
-	if len(vals) == 0 {
-		return raw, nil
-	}
-	m := make(map[string]any, len(vals))
-	for k, vs := range vals {
-		if len(vs) == 1 {
-			m[k] = vs[0]
-		} else {
-			m[k] = vs
-		}
-	}
-	return m, nil
 }
 
 func stringField(v any) (string, bool) {

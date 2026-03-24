@@ -12,13 +12,13 @@ Unofficial CLI & MCP server for the [Frisco.pl](https://www.frisco.pl) grocery d
 - Order history
 - Batch cart additions from JSON shopping lists
 - MCP server for AI assistant integration
-- Session management (HAR import, cURL import, browser login)
+- Session management (cURL import, browser login)
 - i18n support (English default, Polish available)
 
 ## Requirements
 
 - Go `1.26+` (per `go.mod`)
-- For `frisco auth login`: a locally installed browser supported by `chromedp` (e.g. Chrome/Chromium)
+- For `frisco session login`: a locally installed browser supported by `chromedp` (e.g. Chrome/Chromium)
 
 ## Installation
 
@@ -35,10 +35,10 @@ make build
 
 ## Quick start
 
-1. Import session from a HAR file:
+1. Log in via browser (recommended):
 
 ```bash
-frisco har import --path ~/Downloads/www.frisco.pl.har
+frisco session login
 ```
 
 2. Or save session from a cURL command:
@@ -67,8 +67,9 @@ frisco reservation slots --days 2
 frisco reservation reserve --date 2026-03-25 --from-time 06:00 --to-time 07:00
 frisco orders list --all-pages
 frisco account show
-frisco xhr call --method GET --path-or-url "/app/commerce/api/v1/users/123/cart"
-frisco mcp                     # Start MCP server (stdio)
+frisco session login               # Interactive browser login
+frisco session refresh-token       # Refresh access token
+frisco mcp                         # Start MCP server (stdio)
 ```
 
 ### Batch cart from a shopping list
@@ -115,7 +116,7 @@ Security notes:
 - Access to this file grants API access in your account's context.
 - Do not run `frisco mcp` in untrusted or shared environments.
 
-If an access token expires, the CLI will automatically attempt to refresh it. If refresh fails, re-import your session with `frisco session from-curl` or `frisco auth login`.
+If an access token expires, the CLI will automatically attempt to refresh it. If refresh fails, re-import your session with `frisco session from-curl` or `frisco session login`.
 
 ## Example payloads
 

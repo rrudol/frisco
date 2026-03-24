@@ -31,22 +31,6 @@ func Dir() string { return sessionDir }
 // FilePath returns ~/.frisco-cli/session.json.
 func FilePath() string { return sessionFile }
 
-// DefaultHARPath matches Python DEFAULT_HAR_PATH pattern (~ /Downloads/www.frisco.pl.har).
-func DefaultHARPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Downloads", "www.frisco.pl.har")
-}
-
-// Endpoint matches entries stored from HAR import (Python session["endpoints"]).
-type Endpoint struct {
-	Method       string `json:"method"`
-	Host         string `json:"host"`
-	Path         string `json:"path"`
-	PathTemplate string `json:"path_template"`
-	HasQuery     bool   `json:"has_query"`
-	URL          string `json:"url"`
-}
-
 // Session is persisted as ~/.frisco-cli/session.json.
 type Session struct {
 	BaseURL      string            `json:"base_url"`
@@ -54,18 +38,14 @@ type Session struct {
 	Token        any               `json:"token"`
 	UserID       any               `json:"user_id"`
 	RefreshToken any               `json:"refresh_token"`
-	Endpoints    []Endpoint        `json:"endpoints"`
-	HarPath      any               `json:"har_path"`
 }
 
 func defaultSession() *Session {
 	return &Session{
 		BaseURL:   DefaultBaseURL,
 		Headers:   map[string]string{},
-		Token:     nil,
-		UserID:    nil,
-		Endpoints: nil,
-		HarPath:   nil,
+		Token:  nil,
+		UserID: nil,
 	}
 }
 

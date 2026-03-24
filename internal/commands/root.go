@@ -29,12 +29,12 @@ func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use: "frisco",
 		Short: tr(
-			"CLI for Frisco endpoints discovered in HAR/XHR.",
-			"CLI do obsługi endpointów Frisco znalezionych w HAR/XHR.",
+			"CLI for Frisco.pl grocery delivery API.",
+			"CLI do obsługi API dostawy Frisco.pl.",
 		),
 		Long: tr(
-			"Session management, HAR import, XHR calls and commerce API operations.",
-			"Narzędzie do sesji, importu HAR, wywołań XHR oraz operacji commerce API.",
+			"Session management, product search, cart, orders, reservations and account operations.",
+			"Zarządzanie sesją, wyszukiwanie produktów, koszyk, zamówienia, rezerwacje i operacje konta.",
 		),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			parsed, ok := i18n.Parse(lang)
@@ -77,14 +77,11 @@ func NewRootCmd() *cobra.Command {
 
 	root.AddCommand(
 		newSessionCmd(),
-		newHarCmd(),
-		newXHRCmd(),
 		newProductsCmd(),
 		newCartCmd(),
 		newReservationCmd(),
 		newAccountCmd(),
 		newOrdersCmd(),
-		newAuthCmd(),
 		newMCPCmd(),
 	)
 	return root

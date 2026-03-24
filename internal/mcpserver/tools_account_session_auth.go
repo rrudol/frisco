@@ -2,10 +2,8 @@ package mcpserver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 
@@ -15,7 +13,7 @@ import (
 	"github.com/rrudol/frisco/internal/session"
 )
 
-func registerAccountXhrSessionHarAuthTools(server *mcp.Server) {
+func registerAccountSessionAuthTools(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "account_profile",
 		Description: "Fetch account profile (GET /users/{id}).",
@@ -72,16 +70,6 @@ func registerAccountXhrSessionHarAuthTools(server *mcp.Server) {
 	}, toolAccountMembershipPoints)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "xhr_list",
-		Description: "List imported XHR endpoints from session (optional contains filter).",
-	}, toolXHRList)
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "xhr_call",
-		Description: "HTTP call with session auth (method, path_or_url, query, headers, data).",
-	}, toolXHRCall)
-
-	mcp.AddTool(server, &mcp.Tool{
 		Name:        "session_show",
 		Description: "Current session with secrets redacted (same as CLI session show).",
 	}, toolSessionShow)
@@ -92,14 +80,9 @@ func registerAccountXhrSessionHarAuthTools(server *mcp.Server) {
 	}, toolSessionFromCurl)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "auth_refresh_token",
+		Name:        "session_refresh_token",
 		Description: "POST /app/commerce/connect/token with refresh_token grant.",
 	}, toolAuthRefreshToken)
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "har_import",
-		Description: "Parse HAR for XHR, persist endpoints to session (mirrors CLI har import).",
-	}, toolHarImport)
 }
 
 type accountAddressesListIn struct {
@@ -398,114 +381,6 @@ func toolAccountMembershipPoints(_ context.Context, _ *mcp.CallToolRequest, in a
 	return mcpCPWrapFriscoResult(result)
 }
 
-type xhrListIn struct {
-	Contains string `json:"contains,omitempty" jsonschema:"substring filter on path template or method"`
-}
-
-func toolXHRList(_ context.Context, _ *mcp.CallToolRequest, in xhrListIn) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
-	s, err := session.Load()
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	endpoints := s.Endpoints
-	if len(endpoints) == 0 {
-		return mcpCPWrapFriscoResult(map[string]any{
-			"endpoints": []session.Endpoint{},
-			"total":     0,
-			"message":   "No endpoints in session. Run har_import first.",
-		})
-	}
-	filtered := endpoints
-	if needle := strings.TrimSpace(in.Contains); needle != "" {
-		n := strings.ToLower(needle)
-		var next []session.Endpoint
-		for _, ep := range endpoints {
-			if strings.Contains(strings.ToLower(ep.PathTemplate), n) ||
-				strings.Contains(strings.ToLower(ep.Method), n) {
-				next = append(next, ep)
-			}
-		}
-		filtered = next
-	}
-	return mcpCPWrapFriscoResult(map[string]any{
-		"endpoints": filtered,
-		"total":     len(filtered),
-	})
-}
-
-type xhrCallIn struct {
-	Method     string   `json:"method"`
-	PathOrURL  string   `json:"path_or_url"`
-	Query      []string `json:"query,omitempty"`
-	Header     []string `json:"header,omitempty" jsonschema:"Key: Value per element"`
-	Data       string   `json:"data,omitempty"`
-	DataFormat string   `json:"data_format,omitempty" jsonschema:"auto, json, form, raw"`
-}
-
-func toolXHRCall(_ context.Context, _ *mcp.CallToolRequest, in xhrCallIn) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
-	method := strings.TrimSpace(in.Method)
-	pathOrURL := strings.TrimSpace(in.PathOrURL)
-	if method == "" || pathOrURL == "" {
-		return nil, mcpCPFriscoToolOut{}, errors.New("method and path_or_url are required")
-	}
-	s, err := session.Load()
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	payload, err := mcpAXSHParseJSONOrKV(in.Data)
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	extra := map[string]string{}
-	for _, h := range in.Header {
-		idx := strings.IndexByte(h, ':')
-		if idx < 0 {
-			return nil, mcpCPFriscoToolOut{}, fmt.Errorf("bad header %q: expected Key: Value", h)
-		}
-		extra[strings.TrimSpace(h[:idx])] = strings.TrimSpace(h[idx+1:])
-	}
-	opts := httpclient.RequestOpts{
-		Query:        in.Query,
-		ExtraHeaders: extra,
-	}
-	if payload != nil {
-		format := in.DataFormat
-		if format == "" || format == "auto" {
-			trim := strings.TrimSpace(in.Data)
-			switch {
-			case strings.HasPrefix(trim, "{") || strings.HasPrefix(trim, "["):
-				format = "json"
-			case strings.Contains(trim, "="):
-				format = "form"
-			default:
-				format = "raw"
-			}
-		}
-		switch format {
-		case "json":
-			opts.Data = payload
-			opts.DataFormat = httpclient.FormatJSON
-		case "form":
-			opts.Data = payload
-			opts.DataFormat = httpclient.FormatForm
-		case "raw":
-			strPayload, ok := payload.(string)
-			if !ok {
-				return nil, mcpCPFriscoToolOut{}, errors.New("data_format raw requires a string body")
-			}
-			opts.Data = strPayload
-			opts.DataFormat = httpclient.FormatRaw
-		default:
-			return nil, mcpCPFriscoToolOut{}, fmt.Errorf("unsupported data_format: %s", format)
-		}
-	}
-	result, err := httpclient.RequestJSON(s, method, pathOrURL, opts)
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	return mcpCPWrapFriscoResult(result)
-}
-
 type sessionShowIn struct{}
 
 func toolSessionShow(_ context.Context, _ *mcp.CallToolRequest, _ sessionShowIn) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
@@ -540,8 +415,8 @@ func toolSessionFromCurl(_ context.Context, _ *mcp.CallToolRequest, in sessionFr
 		"saved":         true,
 		"base_url":      s.BaseURL,
 		"user_id":       s.UserID,
-		"token_saved":   mcpAXSHTokenSaved(s),
-		"headers_saved": mcpAXSHHeaderKeysSorted(s.Headers),
+		"token_saved":   mcpASATokenSaved(s),
+		"headers_saved": mcpASAHeaderKeysSorted(s.Headers),
 	})
 }
 
@@ -574,14 +449,14 @@ func toolAuthRefreshToken(_ context.Context, _ *mcp.CallToolRequest, in authRefr
 	}
 	if m, ok := result.(map[string]any); ok {
 		expiresIn := m["expires_in"]
-		if at, ok := mcpAXSHStringField(m["access_token"]); ok && at != "" {
+		if at, ok := mcpASAStringField(m["access_token"]); ok && at != "" {
 			s.Token = at
 			if s.Headers == nil {
 				s.Headers = map[string]string{}
 			}
 			s.Headers["Authorization"] = "Bearer " + at
 		}
-		if nr, ok := mcpAXSHStringField(m["refresh_token"]); ok && nr != "" {
+		if nr, ok := mcpASAStringField(m["refresh_token"]); ok && nr != "" {
 			s.RefreshToken = nr
 		}
 		if err := session.Save(s); err != nil {
@@ -589,85 +464,20 @@ func toolAuthRefreshToken(_ context.Context, _ *mcp.CallToolRequest, in authRefr
 		}
 		return mcpCPWrapFriscoResult(map[string]any{
 			"saved":               true,
-			"token_saved":         mcpAXSHTokenSaved(s),
+			"token_saved":         mcpASATokenSaved(s),
 			"refresh_token_saved": session.RefreshTokenString(s) != "",
 			"expires_in":          expiresIn,
 		})
 	}
 	return mcpCPWrapFriscoResult(map[string]any{
 		"saved":               false,
-		"token_saved":         mcpAXSHTokenSaved(s),
+		"token_saved":         mcpASATokenSaved(s),
 		"refresh_token_saved": session.RefreshTokenString(s) != "",
 		"message":             "Unexpected token endpoint payload shape; session not updated.",
 	})
 }
 
-type harImportIn struct {
-	Path string `json:"path,omitempty" jsonschema:"HAR path; default session.DefaultHARPath"`
-}
-
-func toolHarImport(_ context.Context, _ *mcp.CallToolRequest, in harImportIn) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
-	p := strings.TrimSpace(in.Path)
-	if p == "" {
-		p = session.DefaultHARPath()
-	}
-	endpoints, err := session.ParseHarXHR(p)
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	s, err := session.Load()
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	s.Endpoints = endpoints
-	s.HarPath = p
-	for _, ep := range endpoints {
-		if uid := session.ExtractUserID(ep.URL); uid != "" {
-			s.UserID = uid
-			break
-		}
-	}
-	if err := session.Save(s); err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	return mcpCPWrapFriscoResult(map[string]any{
-		"imported":        len(endpoints),
-		"har_path":        p,
-		"session_user_id": session.UserIDString(s),
-	})
-}
-
-func mcpAXSHParseJSONOrKV(raw string) (any, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, nil
-	}
-	if strings.HasPrefix(raw, "{") || strings.HasPrefix(raw, "[") {
-		var v any
-		if err := json.Unmarshal([]byte(raw), &v); err != nil {
-			return nil, err
-		}
-		return v, nil
-	}
-	vals, err := url.ParseQuery(raw)
-	if err != nil {
-		return raw, nil
-	}
-	if len(vals) == 0 {
-		return raw, nil
-	}
-	m := make(map[string]any, len(vals))
-	for k, vs := range vals {
-		if len(vs) == 1 {
-			m[k] = vs[0]
-		} else {
-			m[k] = vs
-		}
-	}
-	return m, nil
-}
-
-func mcpAXSHStringField(v any) (string, bool) {
+func mcpASAStringField(v any) (string, bool) {
 	if v == nil {
 		return "", false
 	}
@@ -680,7 +490,7 @@ func mcpAXSHStringField(v any) (string, bool) {
 	}
 }
 
-func mcpAXSHTokenSaved(s *session.Session) bool {
+func mcpASATokenSaved(s *session.Session) bool {
 	if s == nil || s.Token == nil {
 		return false
 	}
@@ -690,7 +500,7 @@ func mcpAXSHTokenSaved(s *session.Session) bool {
 	return true
 }
 
-func mcpAXSHHeaderKeysSorted(h map[string]string) []string {
+func mcpASAHeaderKeysSorted(h map[string]string) []string {
 	if len(h) == 0 {
 		return []string{}
 	}
