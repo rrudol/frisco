@@ -453,6 +453,7 @@ func newAccountVouchersCmd() *cobra.Command {
 
 func newAccountPaymentsCmd() *cobra.Command {
 	var userID string
+	var pageIndex, pageSize int
 	c := &cobra.Command{
 		Use:   "payments",
 		Short: tr("Fetch payment methods.", "Pobierz metody płatności."),
@@ -466,15 +467,57 @@ func newAccountPaymentsCmd() *cobra.Command {
 				return err
 			}
 			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/payments", uid)
-			result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
+			q := []string{
+				fmt.Sprintf("pageIndex=%d", pageIndex),
+				fmt.Sprintf("pageSize=%d", pageSize),
+			}
+			result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{Query: q})
 			if err != nil {
 				return err
 			}
-			return printJSON(result)
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			return printPaymentsTable(result)
 		},
 	}
+	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
+	c.Flags().IntVar(&pageSize, "page-size", 25, "")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
+}
+
+func printPaymentsTable(v any) error {
+	page, ok := v.(map[string]any)
+	if !ok {
+		return printJSON(v)
+	}
+
+	// Pagination info.
+	pageIndex := int(toFloat(page["pageIndex"]))
+	pageCount := int(toFloat(page["pageCount"]))
+	totalCount := int(toFloat(page["totalCount"]))
+	fmt.Printf("Page %d/%d (%d total)\n\n", pageIndex, pageCount, totalCount)
+
+	items := toSlice(page["items"])
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "date\tstatus\tchannel\tcard\torderId")
+	for _, item := range items {
+		row, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		date := cellValue(row["createdAt"])
+		if len(date) >= 10 {
+			date = date[:10]
+		}
+		status := cellValue(row["status"])
+		channel := cellValue(row["channelName"])
+		card := cellValue(row["creditCardBrand"])
+		orderID := cellValue(row["orderId"])
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", date, status, channel, card, orderID)
+	}
+	return w.Flush()
 }
 
 func newAccountMembershipCmd() *cobra.Command {
