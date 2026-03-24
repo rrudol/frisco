@@ -51,11 +51,60 @@ func newAccountProfileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printJSON(result)
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			return printProfileTable(result)
 		},
 	}
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
+}
+
+func printProfileTable(v any) error {
+	profile, ok := v.(map[string]any)
+	if !ok {
+		return printJSON(v)
+	}
+
+	// Build Name from fullName.firstName + lastName.
+	name := "—"
+	if fn, ok := profile["fullName"].(map[string]any); ok {
+		first := cellValue(fn["firstName"])
+		last := cellValue(fn["lastName"])
+		parts := []string{}
+		if first != "—" {
+			parts = append(parts, first)
+		}
+		if last != "—" {
+			parts = append(parts, last)
+		}
+		if len(parts) > 0 {
+			name = strings.Join(parts, " ")
+		}
+	}
+
+	// Extract registeredAt as YYYY-MM-DD.
+	registered := cellValue(profile["registeredAt"])
+	if len(registered) >= 10 {
+		registered = registered[:10]
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	rows := []struct{ label, value string }{
+		{"Name", name},
+		{"Email", cellValue(profile["email"])},
+		{"Phone", cellValue(profile["phoneNumber"])},
+		{"Postcode", cellValue(profile["postcode"])},
+		{"Language", cellValue(profile["language"])},
+		{"Profile", cellValue(profile["profileType"])},
+		{"Adult", cellValue(profile["isAdult"])},
+		{"Registered", registered},
+	}
+	for _, r := range rows {
+		_, _ = fmt.Fprintf(w, "%s\t%s\n", r.label, r.value)
+	}
+	return w.Flush()
 }
 
 func newAccountAddressesCmd() *cobra.Command {
