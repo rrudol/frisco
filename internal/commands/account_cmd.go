@@ -3,6 +3,9 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -81,11 +84,61 @@ func newAccountAddressesListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printJSON(result)
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			return printAddressesTable(result)
 		},
 	}
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
+}
+
+func printAddressesTable(v any) error {
+	list, ok := v.([]any)
+	if !ok {
+		return printJSON(v)
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "id\trecipient\tstreet\tcity\tpostcode\tphone")
+	for _, item := range list {
+		row, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		id := cellValue(row["id"])
+		addr, _ := row["shippingAddress"].(map[string]any)
+		recipient := cellValue(addr["recipient"])
+		street := formatStreet(addr)
+		city := cellValue(addr["city"])
+		postcode := cellValue(addr["postcode"])
+		phone := cellValue(addr["phoneNumber"])
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, recipient, street, city, postcode, phone)
+	}
+	return w.Flush()
+}
+
+func formatStreet(addr map[string]any) string {
+	if addr == nil {
+		return "—"
+	}
+	street := cellValue(addr["street"])
+	building := cellValue(addr["buildingNumber"])
+	apartment := cellValue(addr["apartmentNumber"])
+	if street == "—" {
+		return "—"
+	}
+	var sb strings.Builder
+	sb.WriteString(street)
+	if building != "—" {
+		sb.WriteString(" ")
+		sb.WriteString(building)
+		if apartment != "—" {
+			sb.WriteString("/")
+			sb.WriteString(apartment)
+		}
+	}
+	return sb.String()
 }
 
 func newAccountAddressesAddCmd() *cobra.Command {
