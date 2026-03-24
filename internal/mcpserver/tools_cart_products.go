@@ -20,6 +20,7 @@ type mcpCPFriscoToolOut struct {
 	Data json.RawMessage `json:"data,omitempty" jsonschema:"JSON body returned by Frisco (object, array, or scalar)"`
 }
 
+// registerCartAndProductsTools registers all cart and product MCP tools.
 func registerCartAndProductsTools(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "cart_show",
@@ -52,6 +53,7 @@ func registerCartAndProductsTools(server *mcp.Server) {
 	}, mcpCPProductsNutrition)
 }
 
+// mcpCPCartShowIn is the input type for the cart_show tool.
 type mcpCPCartShowIn struct {
 	UserID string `json:"user_id,omitempty" jsonschema:"Frisco user id; falls back to session user_id"`
 }
@@ -73,6 +75,7 @@ func mcpCPCartShow(_ context.Context, _ *mcp.CallToolRequest, in mcpCPCartShowIn
 	return mcpCPWrapFriscoResult(result)
 }
 
+// mcpCPCartAddIn is the input type for the cart_add tool.
 type mcpCPCartAddIn struct {
 	ProductID string `json:"product_id" jsonschema:"Frisco product id"`
 	Quantity  *int   `json:"quantity,omitempty" jsonschema:"defaults to 1 when omitted"`
@@ -111,6 +114,7 @@ func mcpCPCartAdd(_ context.Context, _ *mcp.CallToolRequest, in mcpCPCartAddIn) 
 	return mcpCPWrapFriscoResult(result)
 }
 
+// mcpCPCartRemoveIn is the input type for the cart_remove tool.
 type mcpCPCartRemoveIn struct {
 	ProductID string `json:"product_id" jsonschema:"Frisco product id"`
 	UserID    string `json:"user_id,omitempty" jsonschema:"optional override of session user_id"`
@@ -144,6 +148,7 @@ func mcpCPCartRemove(_ context.Context, _ *mcp.CallToolRequest, in mcpCPCartRemo
 	return mcpCPWrapFriscoResult(result)
 }
 
+// mcpCPProductsSearchIn is the input type for the products_search tool.
 type mcpCPProductsSearchIn struct {
 	Search          string  `json:"search" jsonschema:"search phrase (purpose=Listing)"`
 	CategoryID      string  `json:"category_id,omitempty" jsonschema:"optional Frisco categoryId to narrow results (e.g. 18703 Warzywa i owoce)"`
@@ -198,6 +203,7 @@ func mcpCPProductsSearch(_ context.Context, _ *mcp.CallToolRequest, in mcpCPProd
 	return mcpCPWrapFriscoResult(result)
 }
 
+// mcpCPProductsByIDsIn is the input type for the products_by_ids tool.
 type mcpCPProductsByIDsIn struct {
 	ProductIDs []string `json:"product_ids" jsonschema:"list of Frisco product ids"`
 	UserID     string   `json:"user_id,omitempty" jsonschema:"optional override of session user_id"`
@@ -227,6 +233,7 @@ func mcpCPProductsByIDs(_ context.Context, _ *mcp.CallToolRequest, in mcpCPProdu
 	return mcpCPWrapFriscoResult(result)
 }
 
+// mcpCPProductsNutritionIn is the input type for the products_nutrition tool.
 type mcpCPProductsNutritionIn struct {
 	ProductID string `json:"product_id" jsonschema:"Frisco product id"`
 	Raw       bool   `json:"raw,omitempty" jsonschema:"if true, return full API JSON; default false"`
@@ -264,6 +271,8 @@ func mcpCPProductsNutrition(_ context.Context, _ *mcp.CallToolRequest, in mcpCPP
 	return mcpCPWrapFriscoResult(out)
 }
 
+// mcpCPWrapFriscoResult marshals v into a CallToolResult and the structured
+// mcpCPFriscoToolOut envelope, truncating the text content at 8000 runes.
 func mcpCPWrapFriscoResult(v any) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {

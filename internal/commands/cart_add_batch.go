@@ -81,7 +81,7 @@ func newCartAddBatchCmd() *cobra.Command {
 			if err != nil {
 				return printJSON(last)
 			}
-			if err := printCartSummary(result); err == nil {
+			if err := printCartSummary(result, cartShowOpts{}); err == nil {
 				return nil
 			}
 			return printJSON(result)
@@ -94,6 +94,7 @@ func newCartAddBatchCmd() *cobra.Command {
 	return c
 }
 
+// printCartBatchDryRun prints parsed batch lines as a table without calling the API.
 func printCartBatchDryRun(lines []cartBatchLine) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(w, "PRODUCT ID\tQTY")
@@ -104,6 +105,7 @@ func printCartBatchDryRun(lines []cartBatchLine) error {
 	return nil
 }
 
+// parseCartBatchFile reads a JSON file and returns sorted, deduplicated batch lines.
 func parseCartBatchFile(path string) ([]cartBatchLine, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -125,6 +127,8 @@ func parseCartBatchFile(path string) ([]cartBatchLine, error) {
 	return out, nil
 }
 
+// parseCartBatchJSON unmarshals a JSON batch payload (array or {items:[...]}) into
+// a productId→quantity map, summing duplicate entries.
 func parseCartBatchJSON(data []byte) (map[string]int, error) {
 	var top any
 	if err := json.Unmarshal(data, &top); err != nil {
@@ -166,6 +170,7 @@ func parseCartBatchJSON(data []byte) (map[string]int, error) {
 	return out, nil
 }
 
+// batchProductID extracts the product ID from a batch item map, trying multiple key names.
 func batchProductID(m map[string]any) string {
 	for _, k := range []string{"product_id", "productId", "productid"} {
 		if s := strings.TrimSpace(asString(m[k])); s != "" {
@@ -175,6 +180,7 @@ func batchProductID(m map[string]any) string {
 	return ""
 }
 
+// batchQuantity extracts the quantity from a batch item map, defaulting to 1 when absent.
 func batchQuantity(m map[string]any, itemIndex int) (int, error) {
 	for _, k := range []string{"quantity", "qty"} {
 		if _, ok := m[k]; !ok {
@@ -219,6 +225,8 @@ func quantitiesFromCartGET(data any) map[string]int {
 	return out
 }
 
+// mergedCartProductsSlice converts a productId→quantity map into a sorted products slice
+// suitable for the Frisco cart PUT body (omits entries with quantity <= 0).
 func mergedCartProductsSlice(qtyMap map[string]int) []any {
 	ids := make([]string, 0, len(qtyMap))
 	for id, q := range qtyMap {

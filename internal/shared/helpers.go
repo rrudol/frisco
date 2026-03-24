@@ -59,13 +59,13 @@ func ProductNameFromMap(m map[string]any) string {
 
 // LocalizedString extracts a string from a value that may be a plain string,
 // a locale map (e.g. {"pl": "...", "en": "..."}), or another nested structure.
-// It prefers "en", then "pl".
+// It prefers "pl", then "en".
 func LocalizedString(v any) string {
 	switch x := v.(type) {
 	case string:
 		return strings.TrimSpace(x)
 	case map[string]any:
-		for _, k := range []string{"en", "pl"} {
+		for _, k := range []string{"pl", "en"} {
 			if s := mapLocaleValue(x, k); s != "" {
 				return s
 			}

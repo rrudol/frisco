@@ -1,3 +1,4 @@
+// Package commands implements the frisco CLI command tree.
 package commands
 
 import (

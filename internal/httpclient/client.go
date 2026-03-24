@@ -1,3 +1,6 @@
+// Package httpclient provides a thin HTTP client for the Frisco API.
+// It handles auth headers, query params, body serialisation, automatic token
+// refresh on 401, and sensitive-data sanitisation in error messages.
 package httpclient
 
 import (
@@ -15,13 +18,13 @@ import (
 	"github.com/rrudol/frisco/internal/session"
 )
 
-// DataFormat matches Python request_json data_format.
+// DataFormat specifies how the request body should be encoded.
 type DataFormat string
 
 const (
-	FormatJSON DataFormat = "json"
-	FormatForm DataFormat = "form"
-	FormatRaw  DataFormat = "raw"
+	FormatJSON DataFormat = "json" // encode body as JSON
+	FormatForm DataFormat = "form" // encode body as application/x-www-form-urlencoded
+	FormatRaw  DataFormat = "raw"  // send body string as-is
 )
 
 // RequestOpts bundles optional arguments for RequestJSON.
@@ -33,6 +36,7 @@ type RequestOpts struct {
 	Client       *http.Client
 }
 
+// maxErrorBodyLen is the maximum number of bytes included in an error body excerpt.
 const maxErrorBodyLen = 1024
 
 var (
@@ -58,6 +62,7 @@ func MakeURL(baseURL, pathOrURL string) (string, error) {
 	return base.ResolveReference(ref).String(), nil
 }
 
+// tokenString returns the session access token as a plain string.
 func tokenString(s *session.Session) string {
 	if s == nil || s.Token == nil {
 		return ""
@@ -70,6 +75,7 @@ func tokenString(s *session.Session) string {
 	}
 }
 
+// headerKeyPresent reports whether key is present in h (case-insensitive lookup).
 func headerKeyPresent(h map[string]string, key string) bool {
 	for k := range h {
 		if strings.EqualFold(k, key) {
@@ -79,7 +85,7 @@ func headerKeyPresent(h map[string]string, key string) bool {
 	return false
 }
 
-// RequestJSON performs HTTP request like Python request_json.
+// RequestJSON performs an HTTP request and returns the parsed JSON response.
 func RequestJSON(s *session.Session, method, pathOrURL string, opts RequestOpts) (any, error) {
 	return requestJSONWithAutoRefresh(s, method, pathOrURL, opts, true)
 }
@@ -224,6 +230,8 @@ func requestJSONWithAutoRefresh(
 	return map[string]any{"status": resp.StatusCode, "body": text}, nil
 }
 
+// sanitizeErrorURL strips query params and fragments from rawURL before including it
+// in an error message to avoid leaking sensitive query values.
 func sanitizeErrorURL(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -234,6 +242,8 @@ func sanitizeErrorURL(rawURL string) string {
 	return u.String()
 }
 
+// sanitizeErrorBody redacts tokens and credentials from an HTTP error body and
+// truncates it to maxErrorBodyLen.
 func sanitizeErrorBody(body string) string {
 	body = strings.TrimSpace(body)
 	if body == "" {
@@ -249,10 +259,14 @@ func sanitizeErrorBody(body string) string {
 	return body
 }
 
+// isTokenEndpoint reports whether fullURL is the Frisco token endpoint, used to
+// prevent infinite refresh loops.
 func isTokenEndpoint(fullURL string) bool {
 	return strings.Contains(fullURL, "/app/commerce/connect/token")
 }
 
+// refreshAccessToken attempts to obtain a new access token using the session's
+// refresh token and updates the session in place on success.
 func refreshAccessToken(s *session.Session, client *http.Client) (bool, error) {
 	rt := session.RefreshTokenString(s)
 	if rt == "" {

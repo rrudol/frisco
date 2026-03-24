@@ -24,8 +24,8 @@ func TestLineFromMap_UsesNestedProductFallback(t *testing.T) {
 	if line.productID != "40046" {
 		t.Fatalf("expected productID 40046, got %q", line.productID)
 	}
-	if line.name != "Butter" {
-		t.Fatalf("expected name Butter, got %q", line.name)
+	if line.name != "Maslo extra" {
+		t.Fatalf("expected name Maslo extra, got %q", line.name)
 	}
 	if line.unitPrice != "7.49" {
 		t.Fatalf("expected unitPrice 7.49, got %q", line.unitPrice)
@@ -39,8 +39,8 @@ func TestProductNameFromMap_LocalizedNameObject(t *testing.T) {
 			"pl": "Platki owsiane gorskie",
 		},
 	})
-	if got != "Mountain oat flakes" {
-		t.Fatalf("expected localized EN name, got %q", got)
+	if got != "Platki owsiane gorskie" {
+		t.Fatalf("expected localized PL name, got %q", got)
 	}
 }
 

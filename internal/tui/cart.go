@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"log"
 	"text/tabwriter"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -342,7 +341,6 @@ func fetchProductDetailsByIDs(sess *session.Session, uid string, productIDs []st
 	}
 	result, err := httpclient.RequestJSON(sess, "GET", path, httpclient.RequestOpts{Query: query})
 	if err != nil {
-		log.Printf("fetchProductDetailsByIDs: %v", err)
 		return nil
 	}
 	return parseProductDetailsPayload(result, productIDs)

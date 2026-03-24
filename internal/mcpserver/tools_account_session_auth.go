@@ -13,6 +13,7 @@ import (
 	"github.com/rrudol/frisco/internal/session"
 )
 
+// registerAccountSessionAuthTools registers all account, session, and auth MCP tools.
 func registerAccountSessionAuthTools(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "account_profile",
@@ -80,10 +81,12 @@ func registerAccountSessionAuthTools(server *mcp.Server) {
 	}, toolAuthRefreshToken)
 }
 
+// accountAddressesListIn is the input type for the account_addresses_list tool.
 type accountAddressesListIn struct {
 	UserID string `json:"user_id,omitempty" jsonschema:"optional; defaults to session user_id"`
 }
 
+// accountProfileIn is the input type for the account_profile tool.
 type accountProfileIn struct {
 	UserID string `json:"user_id,omitempty" jsonschema:"optional; defaults to session user_id"`
 }
@@ -122,6 +125,7 @@ func toolAccountAddressesList(_ context.Context, _ *mcp.CallToolRequest, in acco
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountAddressesAddIn is the input type for the account_addresses_add tool.
 type accountAddressesAddIn struct {
 	UserID  string         `json:"user_id,omitempty"`
 	Payload map[string]any `json:"payload"`
@@ -151,6 +155,7 @@ func toolAccountAddressesAdd(_ context.Context, _ *mcp.CallToolRequest, in accou
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountAddressesUpdateIn is the input type for the account_addresses_update tool.
 type accountAddressesUpdateIn struct {
 	UserID    string         `json:"user_id,omitempty"`
 	AddressID string         `json:"address_id"`
@@ -184,6 +189,7 @@ func toolAccountAddressesUpdate(_ context.Context, _ *mcp.CallToolRequest, in ac
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountAddressesDeleteIn is the input type for the account_addresses_delete tool.
 type accountAddressesDeleteIn struct {
 	UserID    string `json:"user_id,omitempty"`
 	AddressID string `json:"address_id"`
@@ -209,6 +215,8 @@ func toolAccountAddressesDelete(_ context.Context, _ *mcp.CallToolRequest, in ac
 	return mcpCPWrapFriscoResult(result)
 }
 
+// wrapShippingAddressPayload ensures the address payload is wrapped under
+// a "shippingAddress" key if it is not already.
 func wrapShippingAddressPayload(data map[string]any) map[string]any {
 	if _, has := data["shippingAddress"]; has {
 		return data
@@ -216,6 +224,7 @@ func wrapShippingAddressPayload(data map[string]any) map[string]any {
 	return map[string]any{"shippingAddress": data}
 }
 
+// accountConsentsUpdateIn is the input type for the account_consents_update tool.
 type accountConsentsUpdateIn struct {
 	UserID  string         `json:"user_id,omitempty"`
 	Payload map[string]any `json:"payload"`
@@ -244,6 +253,7 @@ func toolAccountConsentsUpdate(_ context.Context, _ *mcp.CallToolRequest, in acc
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountVouchersIn is the input type for the account_vouchers tool.
 type accountVouchersIn struct {
 	UserID string `json:"user_id,omitempty"`
 }
@@ -265,6 +275,7 @@ func toolAccountVouchers(_ context.Context, _ *mcp.CallToolRequest, in accountVo
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountPaymentsIn is the input type for the account_payments tool.
 type accountPaymentsIn struct {
 	UserID string `json:"user_id,omitempty"`
 }
@@ -286,6 +297,7 @@ func toolAccountPayments(_ context.Context, _ *mcp.CallToolRequest, in accountPa
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountMembershipCardsIn is the input type for the account_membership_cards tool.
 type accountMembershipCardsIn struct {
 	UserID string `json:"user_id,omitempty"`
 }
@@ -307,6 +319,7 @@ func toolAccountMembershipCards(_ context.Context, _ *mcp.CallToolRequest, in ac
 	return mcpCPWrapFriscoResult(result)
 }
 
+// accountMembershipPointsIn is the input type for the account_membership_points tool.
 type accountMembershipPointsIn struct {
 	UserID    string `json:"user_id,omitempty"`
 	PageIndex int    `json:"page_index,omitempty"`
@@ -343,6 +356,7 @@ func toolAccountMembershipPoints(_ context.Context, _ *mcp.CallToolRequest, in a
 	return mcpCPWrapFriscoResult(result)
 }
 
+// sessionShowIn is the (empty) input type for the session_show tool.
 type sessionShowIn struct{}
 
 func toolSessionShow(_ context.Context, _ *mcp.CallToolRequest, _ sessionShowIn) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
@@ -353,6 +367,7 @@ func toolSessionShow(_ context.Context, _ *mcp.CallToolRequest, _ sessionShowIn)
 	return mcpCPWrapFriscoResult(session.RedactedCopy(s))
 }
 
+// sessionFromCurlIn is the input type for the session_from_curl tool.
 type sessionFromCurlIn struct {
 	Curl string `json:"curl"`
 }
@@ -382,6 +397,7 @@ func toolSessionFromCurl(_ context.Context, _ *mcp.CallToolRequest, in sessionFr
 	})
 }
 
+// authRefreshTokenIn is the input type for the session_refresh_token tool.
 type authRefreshTokenIn struct {
 	RefreshToken string `json:"refresh_token,omitempty" jsonschema:"optional; else session refresh_token"`
 }
@@ -439,6 +455,7 @@ func toolAuthRefreshToken(_ context.Context, _ *mcp.CallToolRequest, in authRefr
 	})
 }
 
+// mcpASAStringField converts v to a trimmed string and reports whether it is non-empty.
 func mcpASAStringField(v any) (string, bool) {
 	if v == nil {
 		return "", false
@@ -452,6 +469,7 @@ func mcpASAStringField(v any) (string, bool) {
 	}
 }
 
+// mcpASATokenSaved reports whether the session contains a non-empty access token.
 func mcpASATokenSaved(s *session.Session) bool {
 	if s == nil || s.Token == nil {
 		return false
@@ -462,6 +480,7 @@ func mcpASATokenSaved(s *session.Session) bool {
 	return true
 }
 
+// mcpASAHeaderKeysSorted returns the header map keys in sorted order.
 func mcpASAHeaderKeysSorted(h map[string]string) []string {
 	if len(h) == 0 {
 		return []string{}

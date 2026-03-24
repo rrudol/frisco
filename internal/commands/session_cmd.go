@@ -18,6 +18,7 @@ import (
 	"github.com/rrudol/frisco/internal/session"
 )
 
+// defaultLoginURL is the Frisco login page opened by the interactive browser login command.
 const defaultLoginURL = "https://www.frisco.pl/login"
 
 func newSessionCmd() *cobra.Command {
@@ -110,6 +111,7 @@ func newSessionVerifyCmd() *cobra.Command {
 	return c
 }
 
+// tokenSaved reports whether the session contains a non-empty access token.
 func tokenSaved(s *session.Session) bool {
 	if s == nil || s.Token == nil {
 		return false
@@ -120,6 +122,7 @@ func tokenSaved(s *session.Session) bool {
 	return true
 }
 
+// headerKeysSorted returns the header map keys in sorted order.
 func headerKeysSorted(h map[string]string) []string {
 	if len(h) == 0 {
 		return []string{}
@@ -371,6 +374,7 @@ func newSessionLoginCmd() *cobra.Command {
 	return c
 }
 
+// bearerFromHeaders extracts the Bearer token value from a CDP network headers map.
 func bearerFromHeaders(headers network.Headers) string {
 	for k := range headers {
 		if !strings.EqualFold(k, "authorization") {
@@ -385,6 +389,7 @@ func bearerFromHeaders(headers network.Headers) string {
 	return ""
 }
 
+// headerStringValue returns the trimmed value for the named header (case-insensitive).
 func headerStringValue(headers network.Headers, name string) string {
 	for k := range headers {
 		if strings.EqualFold(k, name) {
@@ -394,6 +399,8 @@ func headerStringValue(headers network.Headers, name string) string {
 	return ""
 }
 
+// refreshTokenFromHeaders scans CDP network headers for a Set-Cookie/Cookie value
+// containing a refresh token and returns it if found.
 func refreshTokenFromHeaders(headers network.Headers) string {
 	for k := range headers {
 		if strings.EqualFold(k, "set-cookie") || strings.EqualFold(k, "cookie") {

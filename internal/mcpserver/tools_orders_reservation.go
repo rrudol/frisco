@@ -73,6 +73,7 @@ func registerOrdersAndReservationTools(server *mcp.Server) {
 
 // --- Input / output types (orders + reservation, unique or* prefix) ---
 
+// orOrdersListIn is the input type for the orders_list tool.
 type orOrdersListIn struct {
 	UserID    string `json:"user_id,omitempty" jsonschema:"description=Optional override; else session user_id"`
 	PageIndex int    `json:"page_index,omitempty" jsonschema:"description=1-based page index, default 1"`
@@ -81,57 +82,69 @@ type orOrdersListIn struct {
 	Raw       bool   `json:"raw,omitempty" jsonschema:"description=If true, only api_response (no compact summary)"`
 }
 
+// orOrdersListOut is the output type for the orders_list tool.
 type orOrdersListOut struct {
 	APIResponse any              `json:"api_response" jsonschema:"description=Raw or aggregated API JSON"`
 	Summary     map[string]any   `json:"summary,omitempty"`
 	Orders      []map[string]any `json:"orders,omitempty"`
 }
 
+// orOrdersDetailsIn is the input type for the orders_details tool.
 type orOrdersDetailsIn struct {
 	UserID  string `json:"user_id,omitempty"`
 	OrderID string `json:"order_id" jsonschema:"description=Order id"`
 }
 
+// orOrdersDetailsOut is the output type for the orders_details tool.
 type orOrdersDetailsOut struct {
 	APIResponse any `json:"api_response"`
 }
 
+// orOrdersDeliveryIn is the input type for the orders_delivery tool.
 type orOrdersDeliveryIn struct {
 	UserID  string `json:"user_id,omitempty"`
 	OrderID string `json:"order_id" jsonschema:"description=Order id"`
 }
 
+// orOrdersDeliveryOut is the output type for the orders_delivery tool.
 type orOrdersDeliveryOut struct {
 	APIResponse any `json:"api_response"`
 }
 
+// orOrdersPaymentsIn is the input type for the orders_payments tool.
 type orOrdersPaymentsIn struct {
 	UserID  string `json:"user_id,omitempty"`
 	OrderID string `json:"order_id" jsonschema:"description=Order id"`
 }
 
+// orOrdersPaymentsOut is the output type for the orders_payments tool.
 type orOrdersPaymentsOut struct {
 	APIResponse any `json:"api_response"`
 }
 
+// orReservationDeliveryOptionsIn is the input type for the reservation_delivery_options tool.
 type orReservationDeliveryOptionsIn struct {
 	Postcode string `json:"postcode" jsonschema:"description=postcode, e.g. 00-001"`
 }
 
+// orReservationDeliveryOptionsOut is the output type for the reservation_delivery_options tool.
 type orReservationDeliveryOptionsOut struct {
 	APIResponse any `json:"api_response"`
 }
 
+// orReservationCalendarIn is the input type for the reservation_calendar tool.
 type orReservationCalendarIn struct {
 	UserID          string         `json:"user_id,omitempty"`
 	ShippingAddress map[string]any `json:"shipping_address" jsonschema:"description=shipping address object"`
 	Date            string         `json:"date,omitempty" jsonschema:"description=optional YYYY-M-D or YYYY-MM-DD"`
 }
 
+// orReservationCalendarOut is the output type for the reservation_calendar tool.
 type orReservationCalendarOut struct {
 	APIResponse any `json:"api_response"`
 }
 
+// orReservationSlotsIn is the input type for the reservation_slots tool.
 type orReservationSlotsIn struct {
 	UserID           string         `json:"user_id,omitempty"`
 	Days             int            `json:"days,omitempty" jsonschema:"description=Consecutive days to check, default 3"`
@@ -140,11 +153,13 @@ type orReservationSlotsIn struct {
 	Raw              bool           `json:"raw,omitempty"`
 }
 
+// orReservationSlotsOut is the output type for the reservation_slots tool.
 type orReservationSlotsOut struct {
 	APIByDate map[string]any   `json:"api_by_date,omitempty" jsonschema:"description=Per-day raw API payloads keyed by YYYY-MM-DD"`
 	Days      []map[string]any `json:"days,omitempty" jsonschema:"description=Pretty slots per day when raw is false"`
 }
 
+// orReservationReserveIn is the input type for the reservation_reserve tool.
 type orReservationReserveIn struct {
 	UserID          string         `json:"user_id,omitempty"`
 	Date            string         `json:"date" jsonschema:"description=YYYY-MM-DD"`
@@ -153,25 +168,30 @@ type orReservationReserveIn struct {
 	ShippingAddress map[string]any `json:"shipping_address,omitempty"`
 }
 
+// orReservationReserveOut is the output type for the reservation_reserve tool.
 type orReservationReserveOut struct {
 	Reserved    bool           `json:"reserved"`
 	Slot        map[string]any `json:"slot,omitempty"`
 	APIResponse any            `json:"api_response"`
 }
 
+// orReservationCancelIn is the input type for the reservation_cancel tool.
 type orReservationCancelIn struct {
 	UserID string `json:"user_id,omitempty"`
 }
 
+// orReservationCancelOut is the output type for the reservation_cancel tool.
 type orReservationCancelOut struct {
 	APIResponse any `json:"api_response"`
 }
 
+// orReservationPlanIn is the input type for the reservation_plan tool.
 type orReservationPlanIn struct {
 	UserID  string         `json:"user_id,omitempty"`
 	Payload map[string]any `json:"payload" jsonschema:"description=reservation payload object"`
 }
 
+// orReservationPlanOut is the output type for the reservation_plan tool.
 type orReservationPlanOut struct {
 	APIResponse any `json:"api_response"`
 }
@@ -573,6 +593,7 @@ func orToolReservationPlan(ctx context.Context, req *mcp.CallToolRequest, in orR
 
 // --- Helpers (logic aligned with internal/commands orders + reservation) ---
 
+// orExtractOrdersList extracts an orders slice from various API response shapes.
 func orExtractOrdersList(payload any) []map[string]any {
 	switch p := payload.(type) {
 	case []map[string]any:
@@ -601,6 +622,7 @@ func orExtractOrdersList(payload any) []map[string]any {
 	return nil
 }
 
+// orExtractOrderDatetime returns the first non-empty date/time string found in an order map.
 func orExtractOrderDatetime(order map[string]any) string {
 	for _, key := range []string{"createdAt", "created", "placedAt", "orderDate", "date"} {
 		if v, ok := order[key].(string); ok && v != "" {
@@ -610,6 +632,8 @@ func orExtractOrderDatetime(order map[string]any) string {
 	return ""
 }
 
+// orExtractOrderTotal searches common pricing fields in an order map and returns
+// the largest positive value found, or nil when no numeric total is present.
 func orExtractOrderTotal(order map[string]any) *float64 {
 	var candidates []float64
 	for _, key := range []string{"total", "totalValue", "amount", "grossValue", "orderValue", "finalPrice"} {
@@ -663,6 +687,7 @@ func orExtractOrderTotal(order map[string]any) *float64 {
 	return &best
 }
 
+// orAddNumber appends v to candidates if v is a numeric type.
 func orAddNumber(v any, candidates *[]float64) {
 	switch n := v.(type) {
 	case float64:
@@ -674,11 +699,13 @@ func orAddNumber(v any, candidates *[]float64) {
 	}
 }
 
+// orTruthy returns true when v is a bool with value true.
 func orTruthy(v any) bool {
 	b, ok := v.(bool)
 	return ok && b
 }
 
+// orNonEmptyStr converts v to a trimmed string and reports whether it is non-empty.
 func orNonEmptyStr(v any) (string, bool) {
 	if v == nil {
 		return "", false
@@ -687,6 +714,8 @@ func orNonEmptyStr(v any) (string, bool) {
 	return s, s != ""
 }
 
+// orGetShippingAddressFromAccount fetches the user's saved shipping addresses and
+// returns the preferred (default/current) one, falling back to the first entry.
 func orGetShippingAddressFromAccount(s *session.Session, userID string) (map[string]any, error) {
 	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/addresses/shipping-addresses", userID)
 	data, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
@@ -723,6 +752,8 @@ func orGetShippingAddressFromAccount(s *session.Session, userID string) (map[str
 	return chosen, nil
 }
 
+// orExtractDeliveryWindows recursively walks a calendar API response and collects
+// unique delivery window objects (those with startsAt and endsAt), sorted by start time.
 func orExtractDeliveryWindows(data any) []map[string]any {
 	var windows []map[string]any
 	var walk func(any)
@@ -766,6 +797,8 @@ func orExtractDeliveryWindows(data any) []map[string]any {
 	return out
 }
 
+// orExtractReservableWindows is like orExtractDeliveryWindows but only returns windows
+// that also have a deliveryMethod and warehouse (required for the reserve API call).
 func orExtractReservableWindows(data any) []map[string]any {
 	var windows []map[string]any
 	var walk func(any)
@@ -804,6 +837,8 @@ func orExtractReservableWindows(data any) []map[string]any {
 	return out
 }
 
+// orDateAndHHMMFromISO splits an ISO 8601 timestamp into a date part (YYYY-MM-DD)
+// and an HH:MM time part.
 func orDateAndHHMMFromISO(ts string) (datePart, hhmm string) {
 	idx := strings.IndexByte(ts, 'T')
 	if idx < 0 {
@@ -816,6 +851,7 @@ func orDateAndHHMMFromISO(ts string) (datePart, hhmm string) {
 	return ts[:idx], ts[idx+1 : end]
 }
 
+// parseCalendarDate parses a YYYY-M-D or YYYY-MM-DD date string into year, month, day.
 func parseCalendarDate(date string) (int, int, int, error) {
 	parts := strings.Split(date, "-")
 	if len(parts) != 3 {

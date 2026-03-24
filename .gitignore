@@ -1,14 +1,39 @@
+# Build artifacts
 bin/
+/frisco
+
+# Go
 .gopath/
+vendor/
+
+# Session & credentials
 *.har
-*.log
-.env
+*.env
 .env.*
-.DS_Store
+session.json
+
+# IDE
 .idea/
 .vscode/
-/frisco
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+CLAUDE.md
+.claude/
+
+# Logs
+*.log
+
+# Python (legacy)
 *.pyc
 __pycache__/
+
+# Personal files (meal plans, shopping lists)
 lista-zakupow-*.md
 plan-posilkow-*.md

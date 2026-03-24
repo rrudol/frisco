@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -33,12 +34,14 @@ func newCartCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&userID, "user-id", "", "")
-	cmd.AddCommand(newCartShowCmd(), newCartAddCmd(), newCartAddBatchCmd(), newCartRemoveCmd())
+	cmd.AddCommand(newCartShowCmd(), newCartAddCmd(), newCartAddBatchCmd(), newCartRemoveCmd(), newCartRemoveBatchCmd())
 	return cmd
 }
 
 func newCartShowCmd() *cobra.Command {
 	var userID string
+	var sortBy string
+	var top int
 	c := &cobra.Command{
 		Use:   "show",
 		Short: "Fetch cart.",
@@ -59,17 +62,38 @@ func newCartShowCmd() *cobra.Command {
 			if strings.EqualFold(outputFormat, "json") {
 				return printJSON(result)
 			}
-			if err := printCartSummary(result); err == nil {
+			opts := cartShowOpts{sortBy: sortBy, top: top}
+			if err := printCartSummary(result, opts); err == nil {
 				return nil
 			}
 			return printJSON(result)
 		},
 	}
 	c.Flags().StringVar(&userID, "user-id", "", "")
+	c.Flags().StringVar(&sortBy, "sort-by", "", "Sort items by: total, price-per-kg, name. Default: keep API order.")
+	c.Flags().IntVar(&top, "top", 0, "Show only top N items (0 = show all).")
 	return c
 }
 
-func printCartSummary(v any) error {
+// cartShowOpts holds display options for printCartSummary.
+type cartShowOpts struct {
+	sortBy string // "total" | "price-per-kg" | "name" | ""
+	top    int    // 0 = show all
+}
+
+// cartItem is a normalised, display-ready cart line.
+type cartItem struct {
+	pid        string
+	name       string
+	qty        int
+	grammage   string
+	unit       string
+	unitPrice  float64
+	total      float64
+	pricePerKg float64
+}
+
+func printCartSummary(v any, opts cartShowOpts) error {
 	root, ok := v.(map[string]any)
 	if !ok {
 		return fmt.Errorf("unexpected cart payload")
@@ -79,64 +103,186 @@ func printCartSummary(v any) error {
 		return fmt.Errorf("missing products list")
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "NAME\tPRODUCT ID\tQTY\tUNIT PRICE\tTOTAL")
-	grandTotal := 0.0
+	// Build normalised items.
+	items := make([]cartItem, 0, len(rawProducts))
 	for _, raw := range rawProducts {
-		item, ok := raw.(map[string]any)
+		entry, ok := raw.(map[string]any)
 		if !ok {
 			continue
 		}
-		pid := asString(item["productId"])
-		qty := asInt(item["quantity"])
+		pid := asString(entry["productId"])
+		qty := asInt(entry["quantity"])
 
 		var product map[string]any
-		if p, ok := item["product"].(map[string]any); ok {
+		if p, ok := entry["product"].(map[string]any); ok {
 			product = p
 		}
+
 		name := shared.ProductNameFromMap(product)
 		if name == "" {
 			name = pid
 		}
 
-		unitPrice := shared.MoneyString(item["price"])
-		if unitPrice == "" && product != nil {
-			unitPrice = shared.MoneyString(product["price"])
-		}
-		total := shared.MoneyString(item["total"])
-		if total == "" {
-			if p, ok := parseMoneyFloat(unitPrice); ok && qty > 0 {
-				lineTotal := p * float64(qty)
-				total = fmt.Sprintf("%.2f", lineTotal)
-				grandTotal += lineTotal
+		// grammage and unit from product
+		grammage := ""
+		unit := ""
+		if product != nil {
+			if g, ok := product["grammage"].(string); ok {
+				grammage = strings.TrimSpace(g)
 			}
-		} else if p, ok := parseMoneyFloat(total); ok {
-			grandTotal += p
+			if u, ok := product["unitOfMeasure"].(string); ok {
+				unit = strings.TrimSpace(u)
+			}
 		}
 
+		// unit price: prefer item-level price, fall back to product price
+		unitPriceStr := shared.MoneyString(entry["price"])
+		if unitPriceStr == "" && product != nil {
+			unitPriceStr = shared.MoneyString(product["price"])
+		}
+		unitPrice, _ := parseMoneyFloat(unitPriceStr)
+
+		// total
+		totalStr := shared.MoneyString(entry["total"])
+		var lineTotal float64
+		if totalStr != "" {
+			lineTotal, _ = parseMoneyFloat(totalStr)
+		} else if unitPrice > 0 && qty > 0 {
+			lineTotal = unitPrice * float64(qty)
+		}
+
+		// price per kg/litre — calculated when unit is weight/volume based
+		pricePerKg := 0.0
+		unitNorm := strings.ToLower(unit)
+		if unitNorm == "kilogram" || unitNorm == "litre" {
+			if g, ok := parseGrammageKg(grammage); ok && g > 0 && unitPrice > 0 {
+				pricePerKg = unitPrice / g
+			}
+		}
+		// also try pricePerUnit from product map as a direct fallback
+		if pricePerKg == 0 && product != nil {
+			if pkObj, ok := product["pricePerUnit"].(map[string]any); ok {
+				if pv, ok := pkObj["price"].(float64); ok {
+					pricePerKg = pv
+				}
+			}
+			if pricePerKg == 0 {
+				if pv, ok := product["pricePerKg"].(float64); ok {
+					pricePerKg = pv
+				}
+			}
+		}
+
+		items = append(items, cartItem{
+			pid:        pid,
+			name:       name,
+			qty:        qty,
+			grammage:   grammage,
+			unit:       unit,
+			unitPrice:  unitPrice,
+			total:      lineTotal,
+			pricePerKg: pricePerKg,
+		})
+	}
+
+	// Sort.
+	switch strings.ToLower(strings.TrimSpace(opts.sortBy)) {
+	case "total":
+		sort.SliceStable(items, func(i, j int) bool {
+			return items[i].total > items[j].total
+		})
+	case "price-per-kg":
+		sort.SliceStable(items, func(i, j int) bool {
+			a, b := items[i].pricePerKg, items[j].pricePerKg
+			if a == 0 {
+				return false
+			}
+			if b == 0 {
+				return true
+			}
+			return a > b
+		})
+	case "name":
+		sort.SliceStable(items, func(i, j int) bool {
+			return strings.ToLower(items[i].name) < strings.ToLower(items[j].name)
+		})
+	}
+
+	// Limit.
+	if opts.top > 0 && opts.top < len(items) {
+		items = items[:opts.top]
+	}
+
+	// Print table.
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "NAME\tPRODUCT ID\tQTY\tGRAMMAGE\tUNIT\tUNIT PRICE\tPRICE/KG\tTOTAL")
+	grandTotal := 0.0
+	for _, it := range items {
+		ppkgStr := "-"
+		if it.pricePerKg > 0 {
+			ppkgStr = fmt.Sprintf("%.2f", it.pricePerKg)
+		}
+		unitPriceStr := "-"
+		if it.unitPrice > 0 {
+			unitPriceStr = fmt.Sprintf("%.2f", it.unitPrice)
+		}
+		totalStr := "-"
+		if it.total > 0 {
+			totalStr = fmt.Sprintf("%.2f", it.total)
+			grandTotal += it.total
+		}
 		_, _ = fmt.Fprintf(
 			w,
-			"%s\t%s\t%d\t%s\t%s\n",
-			shared.TruncateText(name, 54),
-			pid,
-			qty,
-			fallbackDash(unitPrice),
-			fallbackDash(total),
+			"%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\n",
+			shared.TruncateText(it.name, 48),
+			it.pid,
+			it.qty,
+			fallbackDash(it.grammage),
+			fallbackDash(it.unit),
+			unitPriceStr,
+			ppkgStr,
+			totalStr,
 		)
 	}
 	_ = w.Flush()
 
 	if totalByStore, ok := root["total"].(map[string]any); ok {
 		if val := shared.MoneyString(totalByStore["_total"]); val != "" {
-			_, _ = fmt.Printf("\n%s %s\n", "Cart total:", val)
+			_, _ = fmt.Printf("\nCart total: %s\n", val)
 		}
 	} else if grandTotal > 0 {
-		_, _ = fmt.Printf("\n%s %.2f\n", "Cart total:", grandTotal)
+		_, _ = fmt.Printf("\nCart total: %.2f\n", grandTotal)
 	}
 	return nil
 }
 
+// parseGrammageKg parses a grammage string like "500 g", "1 kg", "250ml", "1.5 l"
+// and returns the value in kilograms (or litres, treated equally).
+func parseGrammageKg(s string) (float64, bool) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return 0, false
+	}
+	var val float64
+	var unit string
+	// try "val unit" with optional space
+	if n, _ := fmt.Sscanf(s, "%f %s", &val, &unit); n < 2 {
+		if n2, _ := fmt.Sscanf(s, "%f%s", &val, &unit); n2 < 2 {
+			return 0, false
+		}
+	}
+	unit = strings.TrimSpace(unit)
+	switch unit {
+	case "kg", "l", "litre", "litres", "liter", "liters":
+		return val, true
+	case "g", "ml":
+		return val / 1000.0, true
+	}
+	return 0, false
+}
 
+
+// asString coerces any value to a trimmed string, returning "" for nil.
 func asString(v any) string {
 	switch x := v.(type) {
 	case string:
@@ -150,6 +296,7 @@ func asString(v any) string {
 	}
 }
 
+// asInt coerces a numeric any value to int, returning 0 for unrecognised types.
 func asInt(v any) int {
 	switch x := v.(type) {
 	case int:
@@ -168,6 +315,7 @@ func asInt(v any) int {
 }
 
 
+// parseMoneyFloat parses a money string (comma or dot decimal) to float64.
 func parseMoneyFloat(s string) (float64, bool) {
 	s = strings.TrimSpace(strings.ReplaceAll(s, ",", "."))
 	if s == "" || s == "-" {
@@ -181,6 +329,7 @@ func parseMoneyFloat(s string) (float64, bool) {
 }
 
 
+// fallbackDash returns s unchanged, or "-" when s is blank.
 func fallbackDash(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "-"
@@ -247,6 +396,7 @@ func newCartAddCmd() *cobra.Command {
 	return c
 }
 
+// searchMinScore is the minimum picker score required to auto-select a product.
 const searchMinScore = 0.5
 
 // resolveProductBySearch searches for products matching phrase, picks the best

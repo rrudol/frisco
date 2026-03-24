@@ -115,6 +115,8 @@ func newReservationCalendarCmd() *cobra.Command {
 	return c
 }
 
+// getShippingAddressFromAccount fetches the user's saved shipping addresses and
+// returns the preferred (default/current) one, falling back to the first entry.
 func getShippingAddressFromAccount(s *session.Session, userID string) (map[string]any, error) {
 	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/addresses/shipping-addresses", userID)
 	data, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
@@ -151,11 +153,13 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 	return chosen, nil
 }
 
+// truthy returns true when v is a bool with value true.
 func truthy(v any) bool {
 	b, ok := v.(bool)
 	return ok && b
 }
 
+// nonEmptyStr converts v to a trimmed string and reports whether it is non-empty.
 func nonEmptyStr(v any) (string, bool) {
 	if v == nil {
 		return "", false
@@ -164,6 +168,8 @@ func nonEmptyStr(v any) (string, bool) {
 	return s, s != ""
 }
 
+// extractDeliveryWindows recursively walks a calendar API response and collects
+// unique delivery window objects (those with startsAt and endsAt), sorted by start time.
 func extractDeliveryWindows(data any) []map[string]any {
 	var windows []map[string]any
 	var walk func(any)
@@ -207,6 +213,8 @@ func extractDeliveryWindows(data any) []map[string]any {
 	return out
 }
 
+// extractReservableWindows is like extractDeliveryWindows but only returns windows
+// that also have a deliveryMethod and warehouse set (required for the reserve API call).
 func extractReservableWindows(data any) []map[string]any {
 	var windows []map[string]any
 	var walk func(any)
@@ -245,6 +253,8 @@ func extractReservableWindows(data any) []map[string]any {
 	return out
 }
 
+// dateAndHHMMFromISO splits an ISO 8601 timestamp into a date part (YYYY-MM-DD)
+// and an HH:MM time part.
 func dateAndHHMMFromISO(ts string) (datePart, hhmm string) {
 	idx := strings.IndexByte(ts, 'T')
 	if idx < 0 {
@@ -496,6 +506,7 @@ func newReservationPlanCmd() *cobra.Command {
 	return c
 }
 
+// printSlotsTable renders a slice of day/slots maps as a per-day tabwriter table.
 func printSlotsTable(days []map[string]any) error {
 	for _, day := range days {
 		date := cellValue(day["date"])

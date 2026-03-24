@@ -61,6 +61,7 @@ func newAccountProfileCmd() *cobra.Command {
 	return c
 }
 
+// printProfileTable renders a user profile API response as a key-value table.
 func printProfileTable(v any) error {
 	profile, ok := v.(map[string]any)
 	if !ok {
@@ -145,6 +146,7 @@ func newAccountAddressesListCmd() *cobra.Command {
 	return c
 }
 
+// printAddressesTable renders a shipping address list as a tabwriter table.
 func printAddressesTable(v any) error {
 	list, ok := v.([]any)
 	if !ok {
@@ -169,6 +171,7 @@ func printAddressesTable(v any) error {
 	return w.Flush()
 }
 
+// formatStreet builds a human-readable street string from an address map.
 func formatStreet(addr map[string]any) string {
 	if addr == nil {
 		return "—"
@@ -363,6 +366,7 @@ func fetchConsents(s *session.Session, uid string) (map[string]any, error) {
 	return consents, nil
 }
 
+// printConsentsTable renders a consent key→bool map as a sorted tabwriter table.
 func printConsentsTable(consents map[string]any) error {
 	keys := make([]string, 0, len(consents))
 	for k := range consents {
@@ -478,6 +482,7 @@ func newAccountPaymentsCmd() *cobra.Command {
 	return c
 }
 
+// printPaymentsTable renders a paginated payments API response as a tabwriter table.
 func printPaymentsTable(v any) error {
 	page, ok := v.(map[string]any)
 	if !ok {
@@ -680,6 +685,7 @@ func newAccountMembershipPointsHistoryCmd() *cobra.Command {
 	return c
 }
 
+// printPointsHistoryTable renders a paginated membership points response as a tabwriter table.
 func printPointsHistoryTable(v any) error {
 	page, ok := v.(map[string]any)
 	if !ok {
@@ -705,6 +711,7 @@ func printPointsHistoryTable(v any) error {
 	return w.Flush()
 }
 
+// toFloat coerces a numeric any value to float64, returning 0 for unrecognised types.
 func toFloat(v any) float64 {
 	switch n := v.(type) {
 	case float64:
@@ -718,6 +725,7 @@ func toFloat(v any) float64 {
 	}
 }
 
+// toSlice casts v to []any, returning nil when the cast fails.
 func toSlice(v any) []any {
 	if s, ok := v.([]any); ok {
 		return s

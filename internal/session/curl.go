@@ -11,7 +11,7 @@ import (
 	"github.com/google/shlex"
 )
 
-// CurlData mirrors Python parse_curl result.
+// CurlData holds the parsed components of a curl command.
 type CurlData struct {
 	Method  string
 	URL     string
@@ -21,7 +21,7 @@ type CurlData struct {
 
 var userPathRe = regexp.MustCompile(`/users/(\d+)`)
 
-// ParseCurl parses a curl command line (Polish errors like Python).
+// ParseCurl parses a curl command string into its URL, method, headers, and body.
 func ParseCurl(curlCommand string) (*CurlData, error) {
 	tokens, err := shlex.Split(curlCommand)
 	if err != nil {
@@ -125,7 +125,7 @@ var fromCurlHeaderAllow = map[string]struct{}{
 	"referer":          {},
 }
 
-// ApplyFromCurl updates session from parsed curl (Python cmd_session_from_curl).
+// ApplyFromCurl updates a session with data extracted from a parsed curl command.
 func ApplyFromCurl(s *Session, c *CurlData) {
 	if s.Headers == nil {
 		s.Headers = map[string]string{}

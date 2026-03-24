@@ -82,44 +82,7 @@ frisco mcp                         # Start MCP server (stdio)
 
 ## Category IDs
 
-Using `--category-id` with `products search` narrows results to a specific department, which dramatically improves relevance. Without it, a search for "jogurt" might return chocolate bars with "jogurtowa" in the name.
-
-| Category ID | Name |
-|---|---|
-| **18703** | Warzywa i owoce (fresh, frozen) |
-| 18707 | Jabłka |
-| **18895** | Świeże chleby |
-| **18974** | Nabiał, jaja, sery (broad) |
-| 18981 | Jogurty roślinne sojowe |
-| 18996 | Kefir / napoje mleczne |
-| 19014 | Jogurty (skyr etc.) |
-| 19015 | Jogurt naturalny |
-| 19084 | Serek wiejski |
-| 19086 | Twaróg chudy |
-| 19091 | Mozzarella |
-| **19118** | Jaja |
-| **19136** | Mięso i wędliny |
-| **19228** | Ryby świeże |
-| **19380** | Makaron |
-| 19415 | Kasza pęczak |
-| 19420 | Kasza gryczana |
-| **19435** | Ryż |
-| **19454** | Strączki suche |
-| 19479 | Cukier i słodziki |
-| **19518** | Oleje, oliwy |
-| **19552** | Przyprawy |
-| **19700** | Sosy i przeciery (passata) |
-| 19807 | Konserwy (ciecierzyca, fasola) |
-| 19816 | Tuńczyk (konserwy rybne) |
-| 19846 | Warzywa konserwowe (oliwki) |
-| **19991** | Pestki i nasiona |
-| **20028** | Musli, płatki |
-| 20070 | Produkty sojowe (tofu) |
-| 20530 | Herbata zielona |
-| 20547 | Herbata ziołowa |
-| **21178** | Roślinne zamienniki mleka |
-
-> Tip: These IDs are stable across sessions. Bold = top-level departments useful for broad searches.
+Using `--category-id` with `products search` / `products pick` narrows results and dramatically improves relevance. Full category tree: [categories.md](categories.md).
 
 ## Output format
 

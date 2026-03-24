@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// RedactedCopy returns a deep-ish copy safe to print (Python cmd_session_show).
+// RedactedCopy returns a deep copy of the session with sensitive fields masked.
 func RedactedCopy(s *Session) map[string]any {
 	if s == nil {
 		return nil

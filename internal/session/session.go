@@ -105,7 +105,7 @@ func UserIDString(s *Session) string {
 	}
 }
 
-// RequireUserID returns explicit or session user id or errors (Polish message like Python).
+// RequireUserID returns the explicit user ID if given, otherwise falls back to the session user ID.
 func RequireUserID(s *Session, explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil

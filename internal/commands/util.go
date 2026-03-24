@@ -11,8 +11,11 @@ import (
 	"github.com/rrudol/frisco/internal/session"
 )
 
+// outputFormat controls the global output mode ("table" or "json") for all commands.
 var outputFormat = "table"
 
+// printJSON prints v as indented JSON when outputFormat is "json", otherwise
+// delegates to printPretty for a human-readable table/text layout.
 func printJSON(v any) error {
 	if strings.EqualFold(outputFormat, "json") {
 		b, err := json.MarshalIndent(v, "", "  ")
@@ -25,6 +28,7 @@ func printJSON(v any) error {
 	return printPretty(v)
 }
 
+// printPretty renders v as a human-readable table, dispatching on the concrete type.
 func printPretty(v any) error {
 	switch t := v.(type) {
 	case map[string]any:
@@ -37,6 +41,8 @@ func printPretty(v any) error {
 	}
 }
 
+// printPrettyMap renders a map as a table, with special handling for common list
+// payload shapes (orders, items, products, slots) and day/slot structures.
 func printPrettyMap(m map[string]any) error {
 	// Special-case the most common list payload shapes.
 	for _, key := range []string{"orders", "items", "products", "slots"} {
@@ -58,6 +64,8 @@ func printPrettyMap(m map[string]any) error {
 	return printScalarMap(m, nil)
 }
 
+// printScalarMap prints scalar fields of m as a key-value table, then recursively
+// renders non-scalar values; keys in skip are excluded from both passes.
 func printScalarMap(m map[string]any, skip []string) error {
 	skipSet := map[string]struct{}{}
 	for _, k := range skip {
@@ -95,6 +103,8 @@ func printScalarMap(m map[string]any, skip []string) error {
 	return nil
 }
 
+// printPrettyList renders a list of values as a tabwriter table when all items are
+// maps; falls back to a numbered/bulleted text layout for mixed or scalar lists.
 func printPrettyList(list []any, name string) error {
 	rows := listOfMaps(list)
 	if len(rows) > 0 {
@@ -128,6 +138,7 @@ func printPrettyList(list []any, name string) error {
 	return nil
 }
 
+// printPrettySlots renders a {days:[{date, slots:[...]}]} payload as a per-day slot table.
 func printPrettySlots(payload map[string]any) error {
 	raw, ok := payload["days"].([]any)
 	if !ok {
@@ -165,6 +176,7 @@ func printPrettySlots(payload map[string]any) error {
 	return nil
 }
 
+// listOfMaps filters a []any slice to only those elements that are map[string]any.
 func listOfMaps(list []any) []map[string]any {
 	out := make([]map[string]any, 0, len(list))
 	for _, item := range list {
@@ -175,6 +187,8 @@ func listOfMaps(list []any) []map[string]any {
 	return out
 }
 
+// inferColumns determines an ordered column list for tabwriter output by promoting
+// priority keys first and then adding remaining scalar fields.
 func inferColumns(rows []map[string]any) []string {
 	if len(rows) == 0 {
 		return []string{"value"}
@@ -210,6 +224,7 @@ func inferColumns(rows []map[string]any) []string {
 	return cols
 }
 
+// isScalar reports whether v can be rendered as a single table cell value.
 func isScalar(v any) bool {
 	switch v.(type) {
 	case nil, string, bool, int, int32, int64, float32, float64, json.Number:
@@ -219,6 +234,8 @@ func isScalar(v any) bool {
 	}
 }
 
+// cellValue converts v to a display string, returning "—" for nil or blank strings
+// and compacting small JSON objects into a single line.
 func cellValue(v any) string {
 	if v == nil {
 		return "—"
@@ -236,6 +253,7 @@ func cellValue(v any) string {
 	return fmt.Sprint(v)
 }
 
+// hhmm extracts the HH:MM portion from an ISO 8601 timestamp cell value.
 func hhmm(v any) string {
 	s := cellValue(v)
 	if s == "—" {
@@ -251,6 +269,7 @@ func hhmm(v any) string {
 	return parts[1]
 }
 
+// loadJSONFile reads a file at path and unmarshals its contents as JSON.
 func loadJSONFile(path string) (any, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -263,6 +282,7 @@ func loadJSONFile(path string) (any, error) {
 	return v, nil
 }
 
+// stringField converts v to a trimmed string and reports whether it is non-empty.
 func stringField(v any) (string, bool) {
 	if v == nil {
 		return "", false
@@ -276,6 +296,7 @@ func stringField(v any) (string, bool) {
 	}
 }
 
+// refreshTokenString returns the session refresh token as a plain string.
 func refreshTokenString(s *session.Session) string {
 	if s == nil || s.RefreshToken == nil {
 		return ""

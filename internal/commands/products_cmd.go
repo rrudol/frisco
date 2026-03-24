@@ -169,6 +169,7 @@ type pickCandidate struct {
 	finalScore   float64
 }
 
+// bulkKeywords are Polish terms that indicate a bulk/multi-pack product, used to apply a scoring penalty.
 var bulkKeywords = []string{"zestaw", "multipack", "pakiet", "opakowanie zbiorcze"}
 
 // packBonusScore returns a bonus (0-1) for pack sizes in the preferred range.
@@ -198,6 +199,7 @@ func packBonusScore(grammage, preferSize float64) float64 {
 	return 1.0 - (grammage-1.5)/1.5
 }
 
+// hasBulkKeyword reports whether name contains any bulk product keyword.
 func hasBulkKeyword(name string) bool {
 	lower := strings.ToLower(name)
 	for _, kw := range bulkKeywords {
@@ -208,6 +210,7 @@ func hasBulkKeyword(name string) bool {
 	return false
 }
 
+// scorePick computes and stores the final composite score for a pick candidate.
 func scorePick(c *pickCandidate, searchPhrase string, preferSize float64) {
 	// Use picker.Score for name matching (tokenised, case-folded).
 	c.matchScore = picker.Score(c.name, searchPhrase)
@@ -224,6 +227,8 @@ func scorePick(c *pickCandidate, searchPhrase string, preferSize float64) {
 	c.finalScore = c.matchScore*3.0 + priceScore*0.5 + c.packBonus*0.3 - c.bulkPenalty*2.0
 }
 
+// extractPickCandidates converts a raw product search API result into a scored,
+// sorted slice of pick candidates (available products only).
 func extractPickCandidates(result any, searchPhrase string, preferSize float64) []pickCandidate {
 	m, ok := result.(map[string]any)
 	if !ok {
@@ -397,6 +402,7 @@ func newProductsPickCmd() *cobra.Command {
 	return c
 }
 
+// printProductSearchTable renders a product search API response as a tabwriter table.
 func printProductSearchTable(result any) error {
 	m, ok := result.(map[string]any)
 	if !ok {
