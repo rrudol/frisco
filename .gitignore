@@ -9,3 +9,4 @@ bin/
 .vscode/
 frisco
 *.pyc
+__pycache__/
