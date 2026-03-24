@@ -1,0 +1,12 @@
+{
+  "floorNumber": "3",
+  "city": "Warszawa",
+  "recipient": "Jane Doe",
+  "postcode": "00-001",
+  "street": "Marszałkowska",
+  "phoneNumber": "500000000",
+  "buildingNumber": "1",
+  "country": "PL",
+  "apartmentNumber": "10",
+  "stairwayNumber": ""
+}

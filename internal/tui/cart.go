@@ -12,7 +12,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/rrudol/frisco/internal/httpclient"
-	"github.com/rrudol/frisco/internal/i18n"
 	"github.com/rrudol/frisco/internal/session"
 	"github.com/rrudol/frisco/internal/shared"
 )
@@ -160,25 +159,19 @@ func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m cartModel) View() string {
 	var b strings.Builder
-	b.WriteString(i18n.T(
-		"Cart — ↑↓ select  +/− quantity  d delete  r refresh  q quit\n",
-		"Koszyk — ↑↓ wybór  +/− ilość  d usuń  r odśwież  q wyjście\n",
-	))
+	b.WriteString("Cart — ↑↓ select  +/− quantity  d delete  r refresh  q quit\n")
 	if m.confirmDelete {
-		b.WriteString(i18n.T(
-			"Confirm delete: y=yes  n=cancel\n",
-			"Potwierdź usunięcie: y=tak  n=anuluj\n",
-		))
+		b.WriteString("Confirm delete: y=yes  n=cancel\n")
 	}
 	if m.busy {
-		b.WriteString(i18n.T("\nLoading...\n", "\nŁadowanie...\n"))
+		b.WriteString("\nLoading...\n")
 	}
 	b.WriteByte('\n')
 	if len(m.items) == 0 && !m.busy && m.errText == "" {
-		b.WriteString(i18n.T("(cart is empty)\n", "(koszyk pusty)\n"))
+		b.WriteString("(cart is empty)\n")
 	} else {
 		w := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, i18n.T("NAME\tQTY\tUNIT PRICE\tTOTAL PRICE", "NAZWA\tILOŚĆ\tCENA JEDN.\tCENA ŁĄCZNA"))
+		_, _ = fmt.Fprintln(w, "NAME\tQTY\tUNIT PRICE\tTOTAL PRICE")
 		for i, line := range m.items {
 			prefix := "  "
 			if i == m.cursor {
@@ -199,7 +192,7 @@ func (m cartModel) View() string {
 		_ = w.Flush()
 	}
 	if m.errText != "" {
-		b.WriteString(i18n.T("\nError: ", "\nBłąd: "))
+		b.WriteString("\nError: ")
 		b.WriteString(m.errText)
 		b.WriteByte('\n')
 	}
@@ -274,7 +267,7 @@ func parseCartPayload(data any) ([]cartLine, error) {
 	}
 	root, ok := data.(map[string]any)
 	if !ok {
-		return nil, errors.New(i18n.T("expected cart JSON object", "oczekiwano obiektu JSON koszyka"))
+		return nil, errors.New("expected cart JSON object")
 	}
 	arr := firstArray(root,
 		"products", "items", "lineItems", "cartItems", "lines", "Lines",

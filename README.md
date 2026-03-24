@@ -13,7 +13,7 @@ Unofficial CLI & MCP server for the [Frisco.pl](https://www.frisco.pl) grocery d
 - Batch cart additions from JSON shopping lists
 - MCP server for AI assistant integration
 - Session management (cURL import, browser login)
-- i18n support (English default, Polish available)
+
 
 ## Requirements
 
@@ -65,8 +65,9 @@ frisco products search --search apple --category-id 18707
 frisco products nutrition --product-id 4094
 frisco reservation slots --days 2
 frisco reservation reserve --date 2026-03-25 --from-time 06:00 --to-time 07:00
-frisco orders list --all-pages
+frisco reservation cancel
 frisco account show
+frisco account orders list --all-pages
 frisco session login               # Interactive browser login
 frisco session refresh-token       # Refresh access token
 frisco mcp                         # Start MCP server (stdio)
@@ -79,32 +80,55 @@ frisco mcp                         # Start MCP server (stdio)
 3. Build a JSON file: an array of `{ "product_id": "…", "quantity": n }` objects or `{"items":[…]}`. Template: [examples/cart-add-batch.example.json](examples/cart-add-batch.example.json).
 4. `frisco cart add-batch --file list.json` — displays a cart summary after adding. Use `--dry-run` to validate the file without calling the API.
 
-Helper script (search + SKU picker + JSON output): [scripts/build-cart-batch-from-searches.sh](scripts/build-cart-batch-from-searches.sh) with a sample search list in [scripts/weekly-shop-searches.txt](scripts/weekly-shop-searches.txt).
+## Category IDs
+
+Using `--category-id` with `products search` narrows results to a specific department, which dramatically improves relevance. Without it, a search for "jogurt" might return chocolate bars with "jogurtowa" in the name.
+
+| Category ID | Name |
+|---|---|
+| **18703** | Warzywa i owoce (fresh, frozen) |
+| 18707 | Jabłka |
+| **18895** | Świeże chleby |
+| **18974** | Nabiał, jaja, sery (broad) |
+| 18981 | Jogurty roślinne sojowe |
+| 18996 | Kefir / napoje mleczne |
+| 19014 | Jogurty (skyr etc.) |
+| 19015 | Jogurt naturalny |
+| 19084 | Serek wiejski |
+| 19086 | Twaróg chudy |
+| 19091 | Mozzarella |
+| **19118** | Jaja |
+| **19136** | Mięso i wędliny |
+| **19228** | Ryby świeże |
+| **19380** | Makaron |
+| 19415 | Kasza pęczak |
+| 19420 | Kasza gryczana |
+| **19435** | Ryż |
+| **19454** | Strączki suche |
+| 19479 | Cukier i słodziki |
+| **19518** | Oleje, oliwy |
+| **19552** | Przyprawy |
+| **19700** | Sosy i przeciery (passata) |
+| 19807 | Konserwy (ciecierzyca, fasola) |
+| 19816 | Tuńczyk (konserwy rybne) |
+| 19846 | Warzywa konserwowe (oliwki) |
+| **19991** | Pestki i nasiona |
+| **20028** | Musli, płatki |
+| 20070 | Produkty sojowe (tofu) |
+| 20530 | Herbata zielona |
+| 20547 | Herbata ziołowa |
+| **21178** | Roślinne zamienniki mleka |
+
+> Tip: These IDs are stable across sessions. Bold = top-level departments useful for broad searches.
 
 ## Output format
 
 By default the CLI outputs human-readable tables. Use `--format json` for machine-readable output:
 
 ```bash
-frisco orders list --all-pages
-frisco orders list --all-pages --format json
+frisco account orders list --all-pages
+frisco account orders list --all-pages --format json
 ```
-
-## Language (i18n)
-
-The CLI defaults to English. Polish is available via `--lang pl` or the `FRISCO_LANG` environment variable:
-
-```bash
-frisco --lang pl --help
-FRISCO_LANG=pl frisco cart show
-```
-
-Language priority:
-
-1. `--lang` flag
-2. `FRISCO_LANG` env var
-3. `LC_ALL` / `LC_MESSAGES` / `LANG`
-4. Fallback: `en`
 
 ## Session data
 
@@ -120,8 +144,8 @@ If an access token expires, the CLI will automatically attempt to refresh it. If
 
 ## Example payloads
 
-- `shipping_address.example.json`
-- `reservation_payload.example.json`
+- [examples/shipping-address.example.json](examples/shipping-address.example.json)
+- [examples/reservation-payload.example.json](examples/reservation-payload.example.json)
 - [examples/cart-add-batch.example.json](examples/cart-add-batch.example.json)
 
 ## License

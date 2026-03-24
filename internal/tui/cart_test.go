@@ -3,15 +3,10 @@ package tui
 import (
 	"testing"
 
-	"github.com/rrudol/frisco/internal/i18n"
 	"github.com/rrudol/frisco/internal/shared"
 )
 
 func TestLineFromMap_UsesNestedProductFallback(t *testing.T) {
-	prev := i18n.Current()
-	i18n.Set(i18n.PL)
-	defer i18n.Set(prev)
-
 	line := lineFromMap(map[string]any{
 		"quantity": 2,
 		"product": map[string]any{
@@ -29,8 +24,8 @@ func TestLineFromMap_UsesNestedProductFallback(t *testing.T) {
 	if line.productID != "40046" {
 		t.Fatalf("expected productID 40046, got %q", line.productID)
 	}
-	if line.name != "Maslo extra" {
-		t.Fatalf("expected name Maslo extra, got %q", line.name)
+	if line.name != "Butter" {
+		t.Fatalf("expected name Butter, got %q", line.name)
 	}
 	if line.unitPrice != "7.49" {
 		t.Fatalf("expected unitPrice 7.49, got %q", line.unitPrice)
@@ -38,18 +33,14 @@ func TestLineFromMap_UsesNestedProductFallback(t *testing.T) {
 }
 
 func TestProductNameFromMap_LocalizedNameObject(t *testing.T) {
-	prev := i18n.Current()
-	i18n.Set(i18n.PL)
-	defer i18n.Set(prev)
-
 	got := shared.ProductNameFromMap(map[string]any{
 		"name": map[string]any{
 			"en": "Mountain oat flakes",
 			"pl": "Platki owsiane gorskie",
 		},
 	})
-	if got != "Platki owsiane gorskie" {
-		t.Fatalf("expected localized PL name, got %q", got)
+	if got != "Mountain oat flakes" {
+		t.Fatalf("expected localized EN name, got %q", got)
 	}
 }
 

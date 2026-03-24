@@ -26,14 +26,8 @@ func newCartAddBatchCmd() *cobra.Command {
 	var dryRun bool
 	c := &cobra.Command{
 		Use:   "add-batch",
-		Short: tr(
-			"Add many products from a JSON file (search for IDs first).",
-			"Dodaj wiele produktów z pliku JSON (najpierw wyszukaj ID produktów).",
-		),
-		Long: tr(
-			"JSON file: array or {\"items\":[...]}. product_id/productId, quantity/qty (default 1). Duplicates in file: quantities summed. Loads current cart (GET), applies batch quantities on top, then one PUT with full cart so nothing is wiped.",
-			"Plik JSON: tablica lub {\"items\":[...]}. product_id/productId, quantity/qty (domyślnie 1). Duplikaty w pliku: suma ilości. Pobiera koszyk (GET), nakłada ilości z batcha, jeden PUT z całą zawartością — nic nie ginie jak przy wielu PUTach.",
-		),
+		Short: "Add many products from a JSON file (search for IDs first).",
+		Long: "JSON file: array or {\"items\":[...]}. product_id/productId, quantity/qty (default 1). Duplicates in file: quantities summed. Loads current cart (GET), applies batch quantities on top, then one PUT with full cart so nothing is wiped.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -48,7 +42,7 @@ func newCartAddBatchCmd() *cobra.Command {
 				return err
 			}
 			if len(lines) == 0 {
-				return errors.New(tr("No products in file.", "Brak produktów w pliku."))
+				return errors.New("No products in file.")
 			}
 			if dryRun {
 				return printCartBatchDryRun(lines)
@@ -65,7 +59,7 @@ func newCartAddBatchCmd() *cobra.Command {
 			}
 			products := mergedCartProductsSlice(qtyMap)
 			if len(products) == 0 {
-				return errors.New(tr("No products to put in cart.", "Brak produktów do zapisania w koszyku."))
+				return errors.New("No products to put in cart.")
 			}
 			body := map[string]any{"products": products}
 			last, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
@@ -82,7 +76,7 @@ func newCartAddBatchCmd() *cobra.Command {
 					"putCart":     last,
 				})
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), tr("Merged cart: %d line(s) (batch touched %d product id(s)).\n", "Scalono koszyk: %d pozycji (batch: %d productId).\n"), len(products), len(lines))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Merged cart: %d line(s) (batch touched %d product id(s)).\n", len(products), len(lines))
 			result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
 			if err != nil {
 				return printJSON(last)
@@ -93,16 +87,16 @@ func newCartAddBatchCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&file, "file", "", tr("Path to JSON file.", "Ścieżka do pliku JSON."))
+	c.Flags().StringVar(&file, "file", "", "Path to JSON file.")
 	c.Flags().StringVar(&userID, "user-id", "", "")
-	c.Flags().BoolVar(&dryRun, "dry-run", false, tr("Parse file and print lines; do not call API.", "Parsuj plik i wypisz wiersze; bez wywołań API."))
+	c.Flags().BoolVar(&dryRun, "dry-run", false, "Parse file and print lines; do not call API.")
 	_ = c.MarkFlagRequired("file")
 	return c
 }
 
 func printCartBatchDryRun(lines []cartBatchLine) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, tr("PRODUCT ID\tQTY", "PRODUCT ID\tILOŚĆ"))
+	_, _ = fmt.Fprintln(w, "PRODUCT ID\tQTY")
 	for _, line := range lines {
 		_, _ = fmt.Fprintf(w, "%s\t%d\n", line.productID, line.quantity)
 	}
@@ -145,23 +139,23 @@ func parseCartBatchJSON(data []byte) (map[string]int, error) {
 			rawList = items
 		} else {
 			return nil, errors.New(
-				tr("JSON must be an array or an object with \"items\" array.", "JSON musi być tablicą albo obiektem z tablicą \"items\"."),
+				"JSON must be an array or an object with \"items\" array.",
 			)
 		}
 	default:
 		return nil, errors.New(
-			tr("JSON must be an array or an object with \"items\" array.", "JSON musi być tablicą albo obiektem z tablicą \"items\"."),
+			"JSON must be an array or an object with \"items\" array.",
 		)
 	}
 	out := make(map[string]int)
 	for i, el := range rawList {
 		m, ok := el.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("%s", fmt.Sprintf(tr("item %d: expected object", "pozycja %d: oczekiwano obiektu"), i+1))
+			return nil, fmt.Errorf("%s", fmt.Sprintf("item %d: expected object", i+1))
 		}
 		pid := batchProductID(m)
 		if pid == "" {
-			return nil, fmt.Errorf("%s", fmt.Sprintf(tr("item %d: missing product_id / productId", "pozycja %d: brak product_id / productId"), i+1))
+			return nil, fmt.Errorf("%s", fmt.Sprintf("item %d: missing product_id / productId", i+1))
 		}
 		q, err := batchQuantity(m, i+1)
 		if err != nil {
@@ -188,7 +182,7 @@ func batchQuantity(m map[string]any, itemIndex int) (int, error) {
 		}
 		q := asInt(m[k])
 		if q < 1 {
-			return 0, fmt.Errorf("%s", fmt.Sprintf(tr("item %d: quantity must be >= 1", "pozycja %d: ilość musi być >= 1"), itemIndex))
+			return 0, fmt.Errorf("%s", fmt.Sprintf("item %d: quantity must be >= 1", itemIndex))
 		}
 		return q, nil
 	}

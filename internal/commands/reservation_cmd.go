@@ -3,9 +3,11 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -17,7 +19,7 @@ import (
 func newReservationCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reservation",
-		Short: tr("Reservation planning and status.", "Planowanie i status rezerwacji."),
+		Short: "Reservation planning and status.",
 	}
 	cmd.AddCommand(
 		newReservationDeliveryOptionsCmd(),
@@ -25,7 +27,6 @@ func newReservationCmd() *cobra.Command {
 		newReservationSlotsCmd(),
 		newReservationReserveCmd(),
 		newReservationPlanCmd(),
-		newReservationStatusCmd(),
 		newReservationCancelCmd(),
 	)
 	return cmd
@@ -35,7 +36,7 @@ func newReservationDeliveryOptionsCmd() *cobra.Command {
 	var postcode string
 	c := &cobra.Command{
 		Use:   "delivery-options",
-		Short: tr("Delivery/payment options by postcode.", "Opcje dostawy/płatności po kodzie pocztowym."),
+		Short: "Delivery/payment options by postcode.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -62,7 +63,7 @@ func newReservationCalendarCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "calendar",
-		Short: tr("Available delivery windows for address.", "Dostępne okna czasowe dla adresu."),
+		Short: "Available delivery windows for address.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -78,20 +79,20 @@ func newReservationCalendarCmd() *cobra.Command {
 			}
 			shippingAddress, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
+				return errors.New("Address file must contain a JSON object.")
 			}
 			body := map[string]any{"shippingAddress": shippingAddress}
 			var path string
 			if date != "" {
 				parts := strings.Split(date, "-")
 				if len(parts) != 3 {
-					return errors.New(tr("Date must be in format YYYY-M-D or YYYY-MM-DD", "Data musi mieć format YYYY-M-D lub YYYY-MM-DD"))
+					return errors.New("Date must be in format YYYY-M-D or YYYY-MM-DD")
 				}
 				y, err1 := strconv.Atoi(parts[0])
 				m, err2 := strconv.Atoi(parts[1])
 				d, err3 := strconv.Atoi(parts[2])
 				if err1 != nil || err2 != nil || err3 != nil {
-					return errors.New(tr("Date must be in format YYYY-M-D or YYYY-MM-DD", "Data musi mieć format YYYY-M-D lub YYYY-MM-DD"))
+					return errors.New("Date must be in format YYYY-M-D or YYYY-MM-DD")
 				}
 				path = fmt.Sprintf("/app/commerce/api/v2/users/%s/calendar/Van/%d/%d/%d", uid, y, m, d)
 			} else {
@@ -107,8 +108,8 @@ func newReservationCalendarCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&shippingFile, "shipping-address-file", "", tr("JSON with shippingAddress.", "JSON z shippingAddress."))
-	c.Flags().StringVar(&date, "date", "", tr("Optional date YYYY-M-D", "Opcjonalnie data YYYY-M-D"))
+	c.Flags().StringVar(&shippingFile, "shipping-address-file", "", "JSON with shippingAddress.")
+	c.Flags().StringVar(&date, "date", "", "Optional date YYYY-M-D")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	_ = c.MarkFlagRequired("shipping-address-file")
 	return c
@@ -122,7 +123,7 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 	}
 	list, ok := data.([]any)
 	if !ok || len(list) == 0 {
-		return nil, errors.New(tr("No saved user addresses.", "Brak zapisanych adresów użytkownika."))
+		return nil, errors.New("No saved user addresses.")
 	}
 	var preferred map[string]any
 	for _, item := range list {
@@ -142,7 +143,7 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 		}
 	}
 	if chosen == nil {
-		return nil, errors.New(tr("No saved user addresses.", "Brak zapisanych adresów użytkownika."))
+		return nil, errors.New("No saved user addresses.")
 	}
 	if sa, ok := chosen["shippingAddress"].(map[string]any); ok {
 		return sa, nil
@@ -266,10 +267,7 @@ func newReservationSlotsCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use: "slots",
-		Short: tr(
-			"Get available delivery slots for upcoming days (including today).",
-			"Pobierz dostępne godziny dostawy dla kolejnych dni (w tym dzisiaj).",
-		),
+		Short: "Get available delivery slots for upcoming days (including today).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -288,7 +286,7 @@ func newReservationSlotsCmd() *cobra.Command {
 				var ok bool
 				shippingAddress, ok = raw.(map[string]any)
 				if !ok {
-					return errors.New(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
+					return errors.New("Address file must contain a JSON object.")
 				}
 			} else {
 				shippingAddress, err = getShippingAddressFromAccount(s, uid)
@@ -328,14 +326,17 @@ func newReservationSlotsCmd() *cobra.Command {
 			if rawOut {
 				return printJSON(allDays)
 			}
+			if !strings.EqualFold(outputFormat, "json") {
+				return printSlotsTable(pretty)
+			}
 			return printJSON(map[string]any{"days": pretty})
 		},
 	}
-	c.Flags().IntVar(&days, "days", 3, tr("How many upcoming days to check.", "Ile kolejnych dni sprawdzić."))
-	c.Flags().StringVar(&startDate, "start-date", "", tr("Start date YYYY-MM-DD (default: today).", "Data startowa YYYY-MM-DD (domyślnie dziś)."))
-	c.Flags().StringVar(&shippingFile, "shipping-address-file", "", tr("Optional address JSON.", "Opcjonalny JSON z adresem."))
+	c.Flags().IntVar(&days, "days", 3, "How many upcoming days to check.")
+	c.Flags().StringVar(&startDate, "start-date", "", "Start date YYYY-MM-DD (default: today).")
+	c.Flags().StringVar(&shippingFile, "shipping-address-file", "", "Optional address JSON.")
 	c.Flags().StringVar(&userID, "user-id", "", "")
-	c.Flags().BoolVar(&rawOut, "raw", false, tr("Return raw API response.", "Zwróć surową odpowiedź API."))
+	c.Flags().BoolVar(&rawOut, "raw", false, "Return raw API response.")
 	return c
 }
 
@@ -345,7 +346,7 @@ func newReservationReserveCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "reserve",
-		Short: tr("Reserve slot by date and times (e.g. 06:00-07:00).", "Zarezerwuj slot po dacie i godzinach (np. 06:00-07:00)."),
+		Short: "Reserve slot by date and times (e.g. 06:00-07:00).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -368,7 +369,7 @@ func newReservationReserveCmd() *cobra.Command {
 				var ok bool
 				shippingAddress, ok = raw.(map[string]any)
 				if !ok {
-					return errors.New(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
+					return errors.New("Address file must contain a JSON object.")
 				}
 			} else {
 				shippingAddress, err = getShippingAddressFromAccount(s, uid)
@@ -387,7 +388,7 @@ func newReservationReserveCmd() *cobra.Command {
 			}
 			windows := extractReservableWindows(dayData)
 			if len(windows) == 0 {
-				return errors.New(tr("No reservable slots for given date.", "Brak dostępnych slotów rezerwacji dla podanej daty."))
+				return errors.New("No reservable slots for given date.")
 			}
 			var selected map[string]any
 			var possible []string
@@ -405,7 +406,7 @@ func newReservationReserveCmd() *cobra.Command {
 				}
 			}
 			if selected == nil {
-				return fmt.Errorf(tr("Slot %s-%s not found for %s. Available: %s", "Nie znaleziono slotu %s-%s dla %s. Dostępne: %s"),
+				return fmt.Errorf("Slot %s-%s not found for %s. Available: %s",
 					fromTime, toTime, date, strings.Join(possible, ", "))
 			}
 			payload := map[string]any{
@@ -421,22 +422,34 @@ func newReservationReserveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printJSON(map[string]any{
-				"reserved": true,
-				"slot": map[string]any{
-					"startsAt":       selected["startsAt"],
-					"endsAt":         selected["endsAt"],
-					"deliveryMethod": selected["deliveryMethod"],
-					"warehouse":      selected["warehouse"],
-				},
-				"apiResponse": result,
-			})
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(map[string]any{
+					"reserved": true,
+					"slot": map[string]any{
+						"startsAt":       selected["startsAt"],
+						"endsAt":         selected["endsAt"],
+						"deliveryMethod": selected["deliveryMethod"],
+						"warehouse":      selected["warehouse"],
+					},
+					"apiResponse": result,
+				})
+			}
+			_, startHH := dateAndHHMMFromISO(fmt.Sprint(selected["startsAt"]))
+			_, endHH := dateAndHHMMFromISO(fmt.Sprint(selected["endsAt"]))
+			fmt.Println("Reservation confirmed.")
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "%s\t%s\n", "Date", date)
+			fmt.Fprintf(w, "%s\t%s – %s\n", "Time", startHH, endHH)
+			fmt.Fprintf(w, "%s\t%s\n", "Method", cellValue(selected["deliveryMethod"]))
+			fmt.Fprintf(w, "%s\t%s\n", "Warehouse", cellValue(selected["warehouse"]))
+			w.Flush()
+			return nil
 		},
 	}
-	c.Flags().StringVar(&date, "date", "", tr("Date YYYY-MM-DD", "Data YYYY-MM-DD"))
-	c.Flags().StringVar(&fromTime, "from-time", "", tr("Start time HH:MM", "Godzina startu HH:MM"))
-	c.Flags().StringVar(&toTime, "to-time", "", tr("End time HH:MM", "Godzina końca HH:MM"))
-	c.Flags().StringVar(&shippingFile, "shipping-address-file", "", tr("Optional address JSON.", "Opcjonalny JSON z adresem."))
+	c.Flags().StringVar(&date, "date", "", "Date YYYY-MM-DD")
+	c.Flags().StringVar(&fromTime, "from-time", "", "Start time HH:MM")
+	c.Flags().StringVar(&toTime, "to-time", "", "End time HH:MM")
+	c.Flags().StringVar(&shippingFile, "shipping-address-file", "", "Optional address JSON.")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	_ = c.MarkFlagRequired("date")
 	_ = c.MarkFlagRequired("from-time")
@@ -448,7 +461,7 @@ func newReservationPlanCmd() *cobra.Command {
 	var payloadFile, userID string
 	c := &cobra.Command{
 		Use:   "plan",
-		Short: tr("Plan cart reservation from JSON payload.", "Zaplanuj rezerwację koszyka z payloadu JSON."),
+		Short: "Plan cart reservation from JSON payload.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -464,7 +477,7 @@ func newReservationPlanCmd() *cobra.Command {
 			}
 			payload, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+				return errors.New("Payload file must contain a JSON object.")
 			}
 			path := fmt.Sprintf("/app/commerce/api/v2/users/%s/cart/reservation", uid)
 			result, err := httpclient.RequestJSON(s, "POST", path, httpclient.RequestOpts{
@@ -477,50 +490,38 @@ func newReservationPlanCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&payloadFile, "payload-file", "", tr("JSON payload like /cart/reservation", "JSON jak w /cart/reservation"))
+	c.Flags().StringVar(&payloadFile, "payload-file", "", "JSON payload like /cart/reservation")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	_ = c.MarkFlagRequired("payload-file")
 	return c
 }
 
-func newReservationStatusCmd() *cobra.Command {
-	var userID string
-	var pageIndex, pageSize int
-	c := &cobra.Command{
-		Use:   "status",
-		Short: tr("User order/reservation status.", "Status zamówień/rezerwacji użytkownika."),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := session.Load()
-			if err != nil {
-				return err
-			}
-			uid, err := session.RequireUserID(s, userID)
-			if err != nil {
-				return err
-			}
-			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/orders", uid)
-			q := []string{
-				fmt.Sprintf("pageIndex=%d", pageIndex),
-				fmt.Sprintf("pageSize=%d", pageSize),
-			}
-			result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{Query: q})
-			if err != nil {
-				return err
-			}
-			return printJSON(result)
-		},
+func printSlotsTable(days []map[string]any) error {
+	for _, day := range days {
+		date := cellValue(day["date"])
+		fmt.Println(date)
+		slots, _ := day["slots"].([]map[string]any)
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "from\tto\tmethod\twarehouse")
+		for _, slot := range slots {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				hhmm(slot["startsAt"]),
+				hhmm(slot["endsAt"]),
+				cellValue(slot["deliveryMethod"]),
+				cellValue(slot["warehouse"]),
+			)
+		}
+		w.Flush()
+		fmt.Println()
 	}
-	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
-	c.Flags().IntVar(&pageSize, "page-size", 20, "")
-	c.Flags().StringVar(&userID, "user-id", "", "")
-	return c
+	return nil
 }
 
 func newReservationCancelCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "cancel",
-		Short: tr("Cancel active cart reservation.", "Anuluj aktywną rezerwację koszyka."),
+		Short: "Cancel active cart reservation.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -535,7 +536,11 @@ func newReservationCancelCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printJSON(result)
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			fmt.Println("Reservation cancelled.")
+			return nil
 		},
 	}
 	c.Flags().StringVar(&userID, "user-id", "", "")

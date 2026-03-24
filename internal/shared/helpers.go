@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/rrudol/frisco/internal/i18n"
 )
 
 // ExtractNutritionBlock walks a JSON payload recursively and returns the first
@@ -61,17 +59,13 @@ func ProductNameFromMap(m map[string]any) string {
 
 // LocalizedString extracts a string from a value that may be a plain string,
 // a locale map (e.g. {"pl": "...", "en": "..."}), or another nested structure.
-// It prefers the current i18n locale, then "pl", then "en".
+// It prefers "en", then "pl".
 func LocalizedString(v any) string {
 	switch x := v.(type) {
 	case string:
 		return strings.TrimSpace(x)
 	case map[string]any:
-		preferred := mapLocaleValue(x, string(i18n.Current()))
-		if preferred != "" {
-			return preferred
-		}
-		for _, k := range []string{"pl", "en"} {
+		for _, k := range []string{"en", "pl"} {
 			if s := mapLocaleValue(x, k); s != "" {
 				return s
 			}

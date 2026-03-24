@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rrudol/frisco/internal/httpclient"
+	"github.com/rrudol/frisco/internal/picker"
 	"github.com/rrudol/frisco/internal/session"
 	"github.com/rrudol/frisco/internal/shared"
 	"github.com/rrudol/frisco/internal/tui"
@@ -18,7 +19,7 @@ func newCartCmd() *cobra.Command {
 	var userID string
 	cmd := &cobra.Command{
 		Use:   "cart",
-		Short: tr("Cart operations.", "Operacje na koszyku."),
+		Short: "Cart operations.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -40,7 +41,7 @@ func newCartShowCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "show",
-		Short: tr("Fetch cart.", "Pobierz koszyk."),
+		Short: "Fetch cart.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -79,7 +80,7 @@ func printCartSummary(v any) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, tr("NAME\tPRODUCT ID\tQTY\tUNIT PRICE\tTOTAL", "NAZWA\tPRODUCT ID\tILOŚĆ\tCENA JEDN.\tWARTOŚĆ"))
+	_, _ = fmt.Fprintln(w, "NAME\tPRODUCT ID\tQTY\tUNIT PRICE\tTOTAL")
 	grandTotal := 0.0
 	for _, raw := range rawProducts {
 		item, ok := raw.(map[string]any)
@@ -127,10 +128,10 @@ func printCartSummary(v any) error {
 
 	if totalByStore, ok := root["total"].(map[string]any); ok {
 		if val := shared.MoneyString(totalByStore["_total"]); val != "" {
-			_, _ = fmt.Printf("\n%s %s\n", tr("Cart total:", "Suma koszyka:"), val)
+			_, _ = fmt.Printf("\n%s %s\n", "Cart total:", val)
 		}
 	} else if grandTotal > 0 {
-		_, _ = fmt.Printf("\n%s %.2f\n", tr("Cart total:", "Suma koszyka:"), grandTotal)
+		_, _ = fmt.Printf("\n%s %.2f\n", "Cart total:", grandTotal)
 	}
 	return nil
 }
@@ -188,12 +189,22 @@ func fallbackDash(s string) string {
 }
 
 func newCartAddCmd() *cobra.Command {
-	var userID, productID string
+	var userID, productID, searchPhrase, categoryID string
 	var quantity int
 	c := &cobra.Command{
 		Use:   "add",
-		Short: tr("Add/set product quantity in cart.", "Dodaj/ustaw ilość produktu w koszyku."),
+		Short: "Add/set product quantity in cart.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Validate mutual exclusivity: exactly one of --product-id / --search required.
+			hasProductID := strings.TrimSpace(productID) != ""
+			hasSearch := strings.TrimSpace(searchPhrase) != ""
+			if hasProductID && hasSearch {
+				return fmt.Errorf("--product-id and --search are mutually exclusive; provide only one")
+			}
+			if !hasProductID && !hasSearch {
+				return fmt.Errorf("one of --product-id or --search is required")
+			}
+
 			s, err := session.Load()
 			if err != nil {
 				return err
@@ -202,6 +213,16 @@ func newCartAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Resolve product ID via search when --search is given.
+			if hasSearch {
+				pid, err := resolveProductBySearch(s, uid, searchPhrase, categoryID)
+				if err != nil {
+					return err
+				}
+				productID = pid
+			}
+
 			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/cart", uid)
 			body := map[string]any{
 				"products": []any{
@@ -218,18 +239,100 @@ func newCartAddCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&productID, "product-id", "", "")
-	c.Flags().IntVar(&quantity, "quantity", 1, "")
+	c.Flags().StringVar(&productID, "product-id", "", "Product ID to add.")
+	c.Flags().StringVar(&searchPhrase, "search", "", "Search phrase to find a product (mutually exclusive with --product-id).")
+	c.Flags().StringVar(&categoryID, "category-id", "", "Category ID to narrow search results (only used with --search).")
+	c.Flags().IntVar(&quantity, "quantity", 1, "Quantity to set in cart.")
 	c.Flags().StringVar(&userID, "user-id", "", "")
-	_ = c.MarkFlagRequired("product-id")
 	return c
+}
+
+const searchMinScore = 0.5
+
+// resolveProductBySearch searches for products matching phrase, picks the best
+// available match and returns its product ID. When no good match is found it
+// prints up to 3 candidates and returns an error asking the user to retry with
+// --product-id.
+func resolveProductBySearch(s *session.Session, uid, phrase, categoryID string) (string, error) {
+	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/offer/products/query", uid)
+	q := []string{
+		"purpose=Listing",
+		"pageIndex=1",
+		fmt.Sprintf("search=%s", phrase),
+		"includeFacets=false",
+		"deliveryMethod=Van",
+		"pageSize=84",
+		"language=pl",
+		"disableAutocorrect=false",
+	}
+	if strings.TrimSpace(categoryID) != "" {
+		q = append(q, fmt.Sprintf("categoryId=%s", strings.TrimSpace(categoryID)))
+	}
+
+	result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{Query: q})
+	if err != nil {
+		return "", fmt.Errorf("product search failed: %w", err)
+	}
+
+	m, ok := result.(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("unexpected search response format")
+	}
+	rawProducts, _ := m["products"].([]any)
+	if len(rawProducts) == 0 {
+		return "", fmt.Errorf("no products found for search phrase %q", phrase)
+	}
+
+	products := picker.NormaliseProducts(rawProducts)
+	best, top3, ok := picker.Pick(products, phrase, searchMinScore)
+
+	if !ok {
+		fmt.Printf("No strong match found for %q (score < %.1f).\n\n", phrase, searchMinScore)
+		if len(top3) > 0 {
+			fmt.Println("Top results (use --product-id to add one of these):")
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			_, _ = fmt.Fprintln(w, "PRODUCT ID\tNAME\tPRICE\tGRAMMAGE\tPRICE/KG")
+			for _, r := range top3 {
+				p := r.Product
+				priceStr := fmt.Sprintf("%.2f", p.Price)
+				ppkgStr := "-"
+				if p.PricePerKg > 0 {
+					ppkgStr = fmt.Sprintf("%.2f", p.PricePerKg)
+				}
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+					p.ProductID,
+					shared.TruncateText(p.Name, 50),
+					priceStr,
+					fallbackDash(p.Grammage),
+					ppkgStr,
+				)
+			}
+			_ = w.Flush()
+		}
+		return "", fmt.Errorf("use --product-id with one of the product IDs above")
+	}
+
+	// Print the picked product before adding.
+	ppkgStr := "-"
+	if best.PricePerKg > 0 {
+		ppkgStr = fmt.Sprintf("%.2f /kg", best.PricePerKg)
+	}
+	fmt.Printf("Picked: %s  [%s]  %.2f PLN  %s  %s\n",
+		best.Name,
+		best.ProductID,
+		best.Price,
+		fallbackDash(best.Grammage),
+		ppkgStr,
+	)
+
+	return best.ProductID, nil
 }
 
 func newCartRemoveCmd() *cobra.Command {
 	var userID, productID string
 	c := &cobra.Command{
 		Use:   "remove",
-		Short: tr("Remove product from cart (quantity=0).", "Usuń produkt z koszyka (quantity=0)."),
+		Short: "Remove product from cart (quantity=0).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {

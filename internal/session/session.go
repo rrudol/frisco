@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/rrudol/frisco/internal/i18n"
 )
 
 const DefaultBaseURL = "https://www.frisco.pl"
@@ -114,10 +112,7 @@ func RequireUserID(s *Session, explicit string) (string, error) {
 	}
 	uid := UserIDString(s)
 	if uid == "" {
-		return "", errors.New(i18n.T(
-			"Missing user_id. Import session with 'session from-curl' using /users/{id}/... endpoint or pass --user-id.",
-			"Brak user_id. Wklej curl z endpointem /users/{id}/... przez 'session from-curl' albo podaj --user-id.",
-		))
+		return "", errors.New("Missing user_id. Import session with 'session from-curl' using /users/{id}/... endpoint or pass --user-id.")
 	}
 	return uid, nil
 }

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rrudol/frisco/internal/i18n"
 	"github.com/rrudol/frisco/internal/session"
 )
 
@@ -107,10 +106,7 @@ func requestJSONWithAutoRefresh(
 	for _, p := range opts.Query {
 		idx := strings.IndexByte(p, '=')
 		if idx < 0 {
-			return nil, fmt.Errorf(
-				i18n.T("Bad query parameter: %s. Expected key=value", "Zły parametr query: %s. Oczekiwane key=value"),
-				p,
-			)
+			return nil, fmt.Errorf("Bad query parameter: %s. Expected key=value", p)
 		}
 		params.Add(p[:idx], p[idx+1:])
 	}
@@ -163,10 +159,7 @@ func requestJSONWithAutoRefresh(
 			case string:
 				bodyReader = strings.NewReader(d)
 			default:
-				return nil, errors.New(i18n.T(
-					"For data_format=form provide map or string.",
-					"Dla data_format=form podaj dict albo string.",
-				))
+				return nil, errors.New("For data_format=form provide map or string.")
 			}
 			if !headerKeyPresent(headers, "content-type") {
 				headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -174,14 +167,11 @@ func requestJSONWithAutoRefresh(
 		case FormatRaw:
 			str, ok := opts.Data.(string)
 			if !ok {
-				return nil, errors.New(i18n.T("For data_format=raw provide string.", "Dla data_format=raw podaj string."))
+				return nil, errors.New("For data_format=raw provide string.")
 			}
 			bodyReader = strings.NewReader(str)
 		default:
-			return nil, errors.New(i18n.T(
-				"Unsupported data_format. Use: json, form, raw.",
-				"Nieobsługiwany data_format. Użyj: json, form, raw.",
-			))
+			return nil, errors.New("Unsupported data_format. Use: json, form, raw.")
 		}
 	}
 
@@ -195,7 +185,7 @@ func requestJSONWithAutoRefresh(
 
 	resp, err := opts.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf(i18n.T("Connection error: %w", "Błąd połączenia: %w"), err)
+		return nil, fmt.Errorf("Connection error: %w", err)
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
@@ -266,7 +256,7 @@ func isTokenEndpoint(fullURL string) bool {
 func refreshAccessToken(s *session.Session, client *http.Client) (bool, error) {
 	rt := session.RefreshTokenString(s)
 	if rt == "" {
-		return false, errors.New(i18n.T("missing refresh token", "brak refresh tokena"))
+		return false, errors.New("missing refresh token")
 	}
 	payload := map[string]any{
 		"grant_type":    "refresh_token",
@@ -282,11 +272,11 @@ func refreshAccessToken(s *session.Session, client *http.Client) (bool, error) {
 	}
 	m, ok := result.(map[string]any)
 	if !ok {
-		return false, errors.New(i18n.T("unexpected token endpoint response", "nieoczekiwana odpowiedź od endpointu token"))
+		return false, errors.New("unexpected token endpoint response")
 	}
 	accessToken, _ := m["access_token"].(string)
 	if strings.TrimSpace(accessToken) == "" {
-		return false, errors.New(i18n.T("missing access_token in refresh response", "brak access_token w odpowiedzi refresh"))
+		return false, errors.New("missing access_token in refresh response")
 	}
 	s.Token = accessToken
 	if s.Headers == nil {

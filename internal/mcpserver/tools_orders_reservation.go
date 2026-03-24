@@ -66,11 +66,6 @@ func registerOrdersAndReservationTools(server *mcp.Server) {
 	}, orToolReservationPlan)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "reservation_status",
-		Description: "Reservation/order status page (GET user orders). Mirrors frisco reservation status.",
-	}, orToolReservationStatus)
-
-	mcp.AddTool(server, &mcp.Tool{
 		Name:        "reservation_cancel",
 		Description: "Cancel active cart reservation (DELETE .../cart/reservation). Mirrors frisco reservation cancel.",
 	}, orToolReservationCancel)
@@ -162,16 +157,6 @@ type orReservationReserveOut struct {
 	Reserved    bool           `json:"reserved"`
 	Slot        map[string]any `json:"slot,omitempty"`
 	APIResponse any            `json:"api_response"`
-}
-
-type orReservationStatusIn struct {
-	UserID    string `json:"user_id,omitempty"`
-	PageIndex int    `json:"page_index,omitempty" jsonschema:"description=Default 1"`
-	PageSize  int    `json:"page_size,omitempty" jsonschema:"description=Default 20"`
-}
-
-type orReservationStatusOut struct {
-	APIResponse any `json:"api_response"`
 }
 
 type orReservationCancelIn struct {
@@ -544,35 +529,6 @@ func orToolReservationReserve(ctx context.Context, req *mcp.CallToolRequest, in 
 		APIResponse: result,
 	}
 	return nil, out, nil
-}
-
-func orToolReservationStatus(ctx context.Context, req *mcp.CallToolRequest, in orReservationStatusIn) (*mcp.CallToolResult, orReservationStatusOut, error) {
-	s, err := session.Load()
-	if err != nil {
-		return nil, orReservationStatusOut{}, err
-	}
-	uid, err := session.RequireUserID(s, in.UserID)
-	if err != nil {
-		return nil, orReservationStatusOut{}, err
-	}
-	pageIndex := in.PageIndex
-	if pageIndex <= 0 {
-		pageIndex = 1
-	}
-	pageSize := in.PageSize
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/orders", uid)
-	q := []string{
-		fmt.Sprintf("pageIndex=%d", pageIndex),
-		fmt.Sprintf("pageSize=%d", pageSize),
-	}
-	result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{Query: q})
-	if err != nil {
-		return nil, orReservationStatusOut{}, err
-	}
-	return nil, orReservationStatusOut{APIResponse: result}, nil
 }
 
 func orToolReservationCancel(ctx context.Context, req *mcp.CallToolRequest, in orReservationCancelIn) (*mcp.CallToolResult, orReservationCancelOut, error) {

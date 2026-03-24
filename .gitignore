@@ -7,6 +7,8 @@ bin/
 .DS_Store
 .idea/
 .vscode/
-frisco
+/frisco
 *.pyc
 __pycache__/
+lista-zakupow-*.md
+plan-posilkow-*.md

@@ -16,7 +16,7 @@ import (
 func newOrdersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "orders",
-		Short: tr("Order details.", "Szczegóły zamówień."),
+		Short: "Order details.",
 	}
 	cmd.AddCommand(
 		newOrdersListCmd(),
@@ -136,7 +136,7 @@ func newOrdersListCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "list",
-		Short: tr("Order list.", "Lista zamówień."),
+		Short: "Order list.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -285,8 +285,8 @@ func newOrdersListCmd() *cobra.Command {
 	}
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
 	c.Flags().IntVar(&pageSize, "page-size", 10, "")
-	c.Flags().BoolVar(&allPages, "all-pages", false, tr("Fetch all pages.", "Pobierz wszystkie strony."))
-	c.Flags().BoolVar(&rawOut, "raw", false, tr("Return raw API response.", "Zwróć surową odpowiedź API."))
+	c.Flags().BoolVar(&allPages, "all-pages", false, "Fetch all pages.")
+	c.Flags().BoolVar(&rawOut, "raw", false, "Return raw API response.")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
 }
@@ -295,7 +295,7 @@ func newOrdersGetCmd() *cobra.Command {
 	var userID, orderID string
 	c := &cobra.Command{
 		Use:   "get",
-		Short: tr("Single order details.", "Szczegóły jednego zamówienia."),
+		Short: "Single order details.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -323,7 +323,7 @@ func newOrdersDeliveryCmd() *cobra.Command {
 	var userID, orderID string
 	c := &cobra.Command{
 		Use:   "delivery",
-		Short: tr("Delivery details for order.", "Dostawa dla zamówienia."),
+		Short: "Delivery details for order.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -351,7 +351,7 @@ func newOrdersPaymentsCmd() *cobra.Command {
 	var userID, orderID string
 	c := &cobra.Command{
 		Use:   "payments",
-		Short: tr("Payments for order.", "Płatności dla zamówienia."),
+		Short: "Payments for order.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {

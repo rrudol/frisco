@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/rrudol/frisco/internal/i18n"
 	"github.com/rrudol/frisco/internal/session"
 )
 
@@ -289,6 +288,3 @@ func refreshTokenString(s *session.Session) string {
 	}
 }
 
-func tr(en, pl string) string {
-	return i18n.T(en, pl)
-}

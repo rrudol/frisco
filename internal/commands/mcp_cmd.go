@@ -12,7 +12,7 @@ import (
 func newMCPCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "mcp",
-		Short: tr("Run MCP server on stdio transport.", "Uruchom serwer MCP na transporcie stdio."),
+		Short: "Run MCP server on stdio transport.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := mcpserver.New()
 			return server.Run(context.Background(), &mcp.StdioTransport{})

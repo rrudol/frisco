@@ -18,7 +18,7 @@ import (
 func newAccountCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "account",
-		Short: tr("Account management operations.", "Operacje zarządzania kontem."),
+		Short: "Account management operations.",
 	}
 	cmd.AddCommand(
 		newAccountProfileCmd(),
@@ -36,7 +36,7 @@ func newAccountProfileCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "profile",
-		Short: tr("Fetch user profile.", "Pobierz profil użytkownika."),
+		Short: "Fetch user profile.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -110,7 +110,7 @@ func printProfileTable(v any) error {
 func newAccountAddressesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "addresses",
-		Short: tr("Shipping addresses.", "Adresy dostawy."),
+		Short: "Shipping addresses.",
 	}
 	cmd.AddCommand(newAccountAddressesListCmd(), newAccountAddressesAddCmd(), newAccountAddressesDeleteCmd())
 	return cmd
@@ -120,7 +120,7 @@ func newAccountAddressesListCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "list",
-		Short: tr("Address list.", "Lista adresów."),
+		Short: "Address list.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -196,7 +196,7 @@ func newAccountAddressesAddCmd() *cobra.Command {
 	var userID, payloadFile string
 	c := &cobra.Command{
 		Use:   "add",
-		Short: tr("Add address (JSON).", "Dodaj adres (JSON)."),
+		Short: "Add address (JSON).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -212,7 +212,7 @@ func newAccountAddressesAddCmd() *cobra.Command {
 			}
 			data, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+				return errors.New("Payload file must contain a JSON object.")
 			}
 			var body map[string]any
 			if _, has := data["shippingAddress"]; has {
@@ -231,7 +231,7 @@ func newAccountAddressesAddCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&payloadFile, "payload-file", "", tr("JSON address or {shippingAddress:{...}}", "JSON address lub {shippingAddress:{...}}"))
+	c.Flags().StringVar(&payloadFile, "payload-file", "", "JSON address or {shippingAddress:{...}}")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	_ = c.MarkFlagRequired("payload-file")
 	return c
@@ -241,7 +241,7 @@ func newAccountAddressesDeleteCmd() *cobra.Command {
 	var userID, addressID string
 	c := &cobra.Command{
 		Use:   "delete",
-		Short: tr("Delete address by UUID.", "Usuń adres po UUID."),
+		Short: "Delete address by UUID.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -268,7 +268,7 @@ func newAccountAddressesDeleteCmd() *cobra.Command {
 func newAccountConsentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "consents",
-		Short: tr("Consent management.", "Zarządzanie zgodami."),
+		Short: "Consent management.",
 	}
 	cmd.AddCommand(newAccountConsentsShowCmd(), newAccountConsentsToggleCmd(), newAccountConsentsUpdateCmd())
 	return cmd
@@ -278,7 +278,7 @@ func newAccountConsentsShowCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "show",
-		Short: tr("Show current consents.", "Wyświetl aktualne zgody."),
+		Short: "Show current consents.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -307,7 +307,7 @@ func newAccountConsentsToggleCmd() *cobra.Command {
 	var value bool
 	c := &cobra.Command{
 		Use:   "toggle",
-		Short: tr("Toggle a single consent key.", "Przełącz pojedynczą zgodę."),
+		Short: "Toggle a single consent key.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -333,8 +333,8 @@ func newAccountConsentsToggleCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&key, "key", "", tr("Consent key to toggle (e.g. ad_storage).", "Klucz zgody do przełączenia (np. ad_storage)."))
-	c.Flags().BoolVar(&value, "value", false, tr("Value to set (true/false).", "Wartość do ustawienia (true/false)."))
+	c.Flags().StringVar(&key, "key", "", "Consent key to toggle (e.g. ad_storage).")
+	c.Flags().BoolVar(&value, "value", false, "Value to set (true/false).")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	_ = c.MarkFlagRequired("key")
 	_ = c.MarkFlagRequired("value")
@@ -350,15 +350,15 @@ func fetchConsents(s *session.Session, uid string) (map[string]any, error) {
 	}
 	profile, ok := result.(map[string]any)
 	if !ok {
-		return nil, errors.New(tr("Unexpected profile response format.", "Nieoczekiwany format odpowiedzi profilu."))
+		return nil, errors.New("Unexpected profile response format.")
 	}
 	prefs, _ := profile["preferences"].(map[string]any)
 	if prefs == nil {
-		return nil, errors.New(tr("No preferences found in profile.", "Brak preferencji w profilu."))
+		return nil, errors.New("No preferences found in profile.")
 	}
 	consents, _ := prefs["consents"].(map[string]any)
 	if consents == nil {
-		return nil, errors.New(tr("No consents found in profile.", "Brak zgód w profilu."))
+		return nil, errors.New("No consents found in profile.")
 	}
 	return consents, nil
 }
@@ -381,7 +381,7 @@ func newAccountConsentsUpdateCmd() *cobra.Command {
 	var userID, payloadFile string
 	c := &cobra.Command{
 		Use:   "update",
-		Short: tr("Update consents using JSON payload.", "Aktualizuj zgody payloadem JSON."),
+		Short: "Update consents using JSON payload.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -397,7 +397,7 @@ func newAccountConsentsUpdateCmd() *cobra.Command {
 			}
 			body, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+				return errors.New("Payload file must contain a JSON object.")
 			}
 			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/consents", uid)
 			result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
@@ -420,7 +420,7 @@ func newAccountVouchersCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "vouchers",
-		Short: tr("Fetch vouchers.", "Pobierz vouchery."),
+		Short: "Fetch vouchers.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -447,7 +447,7 @@ func newAccountPaymentsCmd() *cobra.Command {
 	var pageIndex, pageSize int
 	c := &cobra.Command{
 		Use:   "payments",
-		Short: tr("Fetch payment methods.", "Pobierz metody płatności."),
+		Short: "Fetch payment methods.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -514,7 +514,7 @@ func printPaymentsTable(v any) error {
 func newAccountMembershipCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "membership",
-		Short: tr("Membership cards/points.", "Karty i punkty membership."),
+		Short: "Membership cards/points.",
 	}
 	cmd.AddCommand(newAccountMembershipCardsCmd(), newAccountMembershipPointsCmd())
 	return cmd
@@ -524,7 +524,7 @@ func newAccountMembershipCardsCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "cards",
-		Short: tr("Fetch membership cards.", "Pobierz membership cards."),
+		Short: "Fetch membership cards.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -543,7 +543,7 @@ func newAccountMembershipCardsCmd() *cobra.Command {
 				return printJSON(result)
 			}
 			if list, ok := result.([]any); ok && len(list) == 0 {
-				fmt.Println(tr("No membership cards.", "Brak kart membership."))
+				fmt.Println("No membership cards.")
 				return nil
 			}
 			return printJSON(result)
@@ -556,7 +556,7 @@ func newAccountMembershipCardsCmd() *cobra.Command {
 func newAccountMembershipPointsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "points",
-		Short: tr("Membership points.", "Punkty membership."),
+		Short: "Membership points.",
 	}
 	cmd.AddCommand(newAccountMembershipPointsShowCmd(), newAccountMembershipPointsHistoryCmd())
 	return cmd
@@ -566,7 +566,7 @@ func newAccountMembershipPointsShowCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "show",
-		Short: tr("Show points summary (balance, earned, spent).", "Podsumowanie punktów (saldo, zdobyte, wydane)."),
+		Short: "Show points summary (balance, earned, spent).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -586,7 +586,7 @@ func newAccountMembershipPointsShowCmd() *cobra.Command {
 			}
 			page, ok := first.(map[string]any)
 			if !ok {
-				return errors.New(tr("Unexpected response format.", "Nieoczekiwany format odpowiedzi."))
+				return errors.New("Unexpected response format.")
 			}
 			pageCount := int(toFloat(page["pageCount"]))
 			allItems := toSlice(page["items"])
@@ -649,7 +649,7 @@ func newAccountMembershipPointsHistoryCmd() *cobra.Command {
 	var pageIndex, pageSize int
 	c := &cobra.Command{
 		Use:   "history",
-		Short: tr("Show points history (paginated).", "Historia punktów (stronicowana)."),
+		Short: "Show points history (paginated).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {

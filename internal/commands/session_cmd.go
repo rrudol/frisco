@@ -23,7 +23,7 @@ const defaultLoginURL = "https://www.frisco.pl/login"
 func newSessionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "session",
-		Short: tr("Manage session (token, headers, user_id).", "Zarządzanie sesją (token, headers, user_id)."),
+		Short: "Manage session (token, headers, user_id).",
 	}
 	cmd.AddCommand(newSessionFromCurlCmd(), newSessionShowCmd(), newSessionVerifyCmd(), newSessionLoginCmd(), newSessionRefreshTokenCmd())
 	return cmd
@@ -33,7 +33,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 	var curlStr string
 	c := &cobra.Command{
 		Use:   "from-curl",
-		Short: tr("Load session from curl command.", "Wczytaj sesję z komendy curl."),
+		Short: "Load session from curl command.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cd, err := session.ParseCurl(curlStr)
 			if err != nil {
@@ -47,7 +47,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 			if err := session.Save(s); err != nil {
 				return err
 			}
-			_, _ = cmd.OutOrStdout().Write([]byte(tr("Session saved from curl.\n", "Zapisano sesję na podstawie curl.\n")))
+			_, _ = cmd.OutOrStdout().Write([]byte("Session saved from curl.\n"))
 			return printJSON(map[string]any{
 				"base_url":      s.BaseURL,
 				"user_id":       s.UserID,
@@ -56,7 +56,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringVar(&curlStr, "curl", "", tr("Full curl command in quotes.", "Cała komenda curl w cudzysłowie."))
+	c.Flags().StringVar(&curlStr, "curl", "", "Full curl command in quotes.")
 	_ = c.MarkFlagRequired("curl")
 	return c
 }
@@ -64,7 +64,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 func newSessionShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
-		Short: tr("Show current session (sensitive values redacted).", "Pokaż aktualną sesję (wrażliwe dane ukryte)."),
+		Short: "Show current session (sensitive values redacted).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -79,10 +79,7 @@ func newSessionVerifyCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "verify",
-		Short: tr(
-			"Verify session has token and user_id; GET cart must succeed.",
-			"Sprawdź sesję: token i user_id; GET koszyka musi się udać.",
-		),
+		Short: "Verify session has token and user_id; GET cart must succeed.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -90,10 +87,7 @@ func newSessionVerifyCmd() *cobra.Command {
 			}
 			if session.TokenString(s) == "" {
 				return errors.New(
-					tr(
-						"No token in session. Use 'session from-curl' or 'session login'.",
-						"Brak tokenu w sesji. Użyj 'session from-curl' albo 'session login'.",
-					),
+					"No token in session. Use 'session from-curl' or 'session login'.",
 				)
 			}
 			uid, err := session.RequireUserID(s, userID)
@@ -107,10 +101,7 @@ func newSessionVerifyCmd() *cobra.Command {
 			}
 			_, _ = fmt.Fprintln(
 				cmd.OutOrStdout(),
-				tr(
-					"Session OK: cart API responded successfully.",
-					"Sesja OK: API koszyka odpowiedziało poprawnie.",
-				),
+				"Session OK: cart API responded successfully.",
 			)
 			return nil
 		},
@@ -145,7 +136,7 @@ func newSessionRefreshTokenCmd() *cobra.Command {
 	var refresh string
 	c := &cobra.Command{
 		Use:   "refresh-token",
-		Short: tr("Refresh access token via refresh token.", "Odśwież access token przez refresh token."),
+		Short: "Refresh access token via refresh token.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -156,10 +147,7 @@ func newSessionRefreshTokenCmd() *cobra.Command {
 				rt = refreshTokenString(s)
 			}
 			if rt == "" {
-				return errors.New(tr(
-					"Missing refresh token. Use --refresh-token or load session with session from-curl.",
-					"Brak refresh tokena. Podaj --refresh-token albo wczytaj go przez session from-curl.",
-				))
+				return errors.New("Missing refresh token. Use --refresh-token or load session with session from-curl.")
 			}
 			payload := map[string]any{
 				"grant_type":    "refresh_token",
@@ -199,7 +187,7 @@ func newSessionRefreshTokenCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringVar(&refresh, "refresh-token", "", tr("Optional refresh token (otherwise from session).", "Opcjonalny refresh token (inaczej z sesji)."))
+	c.Flags().StringVar(&refresh, "refresh-token", "", "Optional refresh token (otherwise from session).")
 	return c
 }
 
@@ -209,10 +197,7 @@ func newSessionLoginCmd() *cobra.Command {
 
 	c := &cobra.Command{
 		Use: "login",
-		Short: tr(
-			"Interactive browser login and automatic session save.",
-			"Interaktywne logowanie przez przeglądarkę i automatyczny zapis sesji.",
-		),
+		Short: "Interactive browser login and automatic session save.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -227,10 +212,10 @@ func newSessionLoginCmd() *cobra.Command {
 				loginURL = defaultLoginURL
 			}
 			if _, err := url.ParseRequestURI(loginURL); err != nil {
-				return fmt.Errorf(tr("Invalid --login-url: %w", "Niepoprawny --login-url: %w"), err)
+				return fmt.Errorf("Invalid --login-url: %w", err)
 			}
 			if timeoutSec <= 0 {
-				return errors.New(tr("--timeout must be > 0", "--timeout musi być > 0"))
+				return errors.New("--timeout must be > 0")
 			}
 
 			type authCapture struct {
@@ -291,14 +276,11 @@ func newSessionLoginCmd() *cobra.Command {
 				network.Enable(),
 				chromedp.Navigate(loginURL),
 			); err != nil {
-				return fmt.Errorf(tr("Could not start login browser: %w", "Nie udało się uruchomić przeglądarki logowania: %w"), err)
+				return fmt.Errorf("Could not start login browser: %w", err)
 			}
 			_, _ = fmt.Fprintln(
 				cmd.OutOrStdout(),
-				tr(
-					"Browser opened. Log in manually and CLI will capture token and save session.",
-					"Otwarta przeglądarka. Zaloguj się ręcznie, CLI wykryje token i zapisze sesję.",
-				),
+				"Browser opened. Log in manually and CLI will capture token and save session.",
 			)
 
 			deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
@@ -350,10 +332,7 @@ func newSessionLoginCmd() *cobra.Command {
 			mu.Unlock()
 
 			if accessToken == "" {
-				return errors.New(tr(
-					"Access token not detected. Try again and after login open account/cart page to trigger API requests.",
-					"Nie wykryto access tokena. Spróbuj ponownie i po zalogowaniu przejdź do strony konta lub koszyka, żeby wymusić zapytania API",
-				))
+				return errors.New("Access token not detected. Try again and after login open account/cart page to trigger API requests.")
 			}
 
 			s.BaseURL = baseURL
@@ -387,8 +366,8 @@ func newSessionLoginCmd() *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVar(&loginURL, "login-url", defaultLoginURL, tr("Login start URL.", "URL startowy do logowania."))
-	c.Flags().IntVar(&timeoutSec, "timeout", 180, tr("Maximum wait time for token (seconds).", "Maksymalny czas oczekiwania na token (sekundy)."))
+	c.Flags().StringVar(&loginURL, "login-url", defaultLoginURL, "Login start URL.")
+	c.Flags().IntVar(&timeoutSec, "timeout", 180, "Maximum wait time for token (seconds).")
 	return c
 }
 
