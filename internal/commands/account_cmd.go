@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -219,8 +220,111 @@ func newAccountConsentsCmd() *cobra.Command {
 		Use:   "consents",
 		Short: tr("Consent management.", "Zarządzanie zgodami."),
 	}
-	cmd.AddCommand(newAccountConsentsUpdateCmd())
+	cmd.AddCommand(newAccountConsentsShowCmd(), newAccountConsentsToggleCmd(), newAccountConsentsUpdateCmd())
 	return cmd
+}
+
+func newAccountConsentsShowCmd() *cobra.Command {
+	var userID string
+	c := &cobra.Command{
+		Use:   "show",
+		Short: tr("Show current consents.", "Wyświetl aktualne zgody."),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := session.Load()
+			if err != nil {
+				return err
+			}
+			uid, err := session.RequireUserID(s, userID)
+			if err != nil {
+				return err
+			}
+			consents, err := fetchConsents(s, uid)
+			if err != nil {
+				return err
+			}
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(consents)
+			}
+			return printConsentsTable(consents)
+		},
+	}
+	c.Flags().StringVar(&userID, "user-id", "", "")
+	return c
+}
+
+func newAccountConsentsToggleCmd() *cobra.Command {
+	var userID, key string
+	var value bool
+	c := &cobra.Command{
+		Use:   "toggle",
+		Short: tr("Toggle a single consent key.", "Przełącz pojedynczą zgodę."),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := session.Load()
+			if err != nil {
+				return err
+			}
+			uid, err := session.RequireUserID(s, userID)
+			if err != nil {
+				return err
+			}
+			consents, err := fetchConsents(s, uid)
+			if err != nil {
+				return err
+			}
+			consents[key] = value
+			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/consents", uid)
+			result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
+				Data:       consents,
+				DataFormat: httpclient.FormatJSON,
+			})
+			if err != nil {
+				return err
+			}
+			return printJSON(result)
+		},
+	}
+	c.Flags().StringVar(&key, "key", "", tr("Consent key to toggle (e.g. ad_storage).", "Klucz zgody do przełączenia (np. ad_storage)."))
+	c.Flags().BoolVar(&value, "value", false, tr("Value to set (true/false).", "Wartość do ustawienia (true/false)."))
+	c.Flags().StringVar(&userID, "user-id", "", "")
+	_ = c.MarkFlagRequired("key")
+	_ = c.MarkFlagRequired("value")
+	return c
+}
+
+// fetchConsents retrieves the user profile and extracts preferences.consents.
+func fetchConsents(s *session.Session, uid string) (map[string]any, error) {
+	path := fmt.Sprintf("/app/commerce/api/v1/users/%s", uid)
+	result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
+	if err != nil {
+		return nil, err
+	}
+	profile, ok := result.(map[string]any)
+	if !ok {
+		return nil, errors.New(tr("Unexpected profile response format.", "Nieoczekiwany format odpowiedzi profilu."))
+	}
+	prefs, _ := profile["preferences"].(map[string]any)
+	if prefs == nil {
+		return nil, errors.New(tr("No preferences found in profile.", "Brak preferencji w profilu."))
+	}
+	consents, _ := prefs["consents"].(map[string]any)
+	if consents == nil {
+		return nil, errors.New(tr("No consents found in profile.", "Brak zgód w profilu."))
+	}
+	return consents, nil
+}
+
+func printConsentsTable(consents map[string]any) error {
+	keys := make([]string, 0, len(consents))
+	for k := range consents {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "key\tenabled")
+	for _, k := range keys {
+		_, _ = fmt.Fprintf(w, "%s\t%v\n", k, consents[k])
+	}
+	return w.Flush()
 }
 
 func newAccountConsentsUpdateCmd() *cobra.Command {
