@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strings"
@@ -504,6 +505,13 @@ func newAccountMembershipCardsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			if list, ok := result.([]any); ok && len(list) == 0 {
+				fmt.Println(tr("No membership cards.", "Brak kart membership."))
+				return nil
+			}
 			return printJSON(result)
 		},
 	}
@@ -512,11 +520,102 @@ func newAccountMembershipCardsCmd() *cobra.Command {
 }
 
 func newAccountMembershipPointsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "points",
+		Short: tr("Membership points.", "Punkty membership."),
+	}
+	cmd.AddCommand(newAccountMembershipPointsShowCmd(), newAccountMembershipPointsHistoryCmd())
+	return cmd
+}
+
+func newAccountMembershipPointsShowCmd() *cobra.Command {
+	var userID string
+	c := &cobra.Command{
+		Use:   "show",
+		Short: tr("Show points summary (balance, earned, spent).", "Podsumowanie punktów (saldo, zdobyte, wydane)."),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := session.Load()
+			if err != nil {
+				return err
+			}
+			uid, err := session.RequireUserID(s, userID)
+			if err != nil {
+				return err
+			}
+			basePath := fmt.Sprintf("/app/commerce/api/v1/users/%s/membership/points", uid)
+
+			// Fetch first page to learn pageCount.
+			q := []string{"pageIndex=1", "pageSize=100"}
+			first, err := httpclient.RequestJSON(s, "GET", basePath, httpclient.RequestOpts{Query: q})
+			if err != nil {
+				return err
+			}
+			page, ok := first.(map[string]any)
+			if !ok {
+				return errors.New(tr("Unexpected response format.", "Nieoczekiwany format odpowiedzi."))
+			}
+			pageCount := int(toFloat(page["pageCount"]))
+			allItems := toSlice(page["items"])
+
+			// Fetch remaining pages.
+			for pi := 2; pi <= pageCount; pi++ {
+				q := []string{
+					fmt.Sprintf("pageIndex=%d", pi),
+					"pageSize=100",
+				}
+				res, err := httpclient.RequestJSON(s, "GET", basePath, httpclient.RequestOpts{Query: q})
+				if err != nil {
+					return err
+				}
+				if p, ok := res.(map[string]any); ok {
+					allItems = append(allItems, toSlice(p["items"])...)
+				}
+			}
+
+			// Compute summary.
+			var balance, earned, spent float64
+			for _, item := range allItems {
+				row, ok := item.(map[string]any)
+				if !ok {
+					continue
+				}
+				pts := toFloat(row["membershipPoints"])
+				balance += pts
+				if pts > 0 {
+					earned += pts
+				} else {
+					spent += math.Abs(pts)
+				}
+			}
+
+			if strings.EqualFold(outputFormat, "json") {
+				summary := map[string]any{
+					"balance":      int(balance),
+					"earned":       int(earned),
+					"spent":        int(spent),
+					"transactions": len(allItems),
+				}
+				return printJSON(summary)
+			}
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			_, _ = fmt.Fprintf(w, "balance\t%d\n", int(balance))
+			_, _ = fmt.Fprintf(w, "earned\t%d\n", int(earned))
+			_, _ = fmt.Fprintf(w, "spent\t%d\n", int(spent))
+			_, _ = fmt.Fprintf(w, "transactions\t%d\n", len(allItems))
+			return w.Flush()
+		},
+	}
+	c.Flags().StringVar(&userID, "user-id", "", "")
+	return c
+}
+
+func newAccountMembershipPointsHistoryCmd() *cobra.Command {
 	var userID string
 	var pageIndex, pageSize int
 	c := &cobra.Command{
-		Use:   "points",
-		Short: tr("Fetch points history.", "Pobierz historię punktów."),
+		Use:   "history",
+		Short: tr("Show points history (paginated).", "Historia punktów (stronicowana)."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -535,11 +634,59 @@ func newAccountMembershipPointsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printJSON(result)
+			if strings.EqualFold(outputFormat, "json") {
+				return printJSON(result)
+			}
+			return printPointsHistoryTable(result)
 		},
 	}
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
 	c.Flags().IntVar(&pageSize, "page-size", 25, "")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
+}
+
+func printPointsHistoryTable(v any) error {
+	page, ok := v.(map[string]any)
+	if !ok {
+		return printJSON(v)
+	}
+	items := toSlice(page["items"])
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "date\toperation\tpoints\torderId")
+	for _, item := range items {
+		row, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		date := cellValue(row["createdAt"])
+		if len(date) >= 10 {
+			date = date[:10]
+		}
+		operation := cellValue(row["operation"])
+		points := cellValue(row["membershipPoints"])
+		orderID := cellValue(row["orderId"])
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", date, operation, points, orderID)
+	}
+	return w.Flush()
+}
+
+func toFloat(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	default:
+		return 0
+	}
+}
+
+func toSlice(v any) []any {
+	if s, ok := v.([]any); ok {
+		return s
+	}
+	return nil
 }
