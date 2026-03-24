@@ -108,6 +108,7 @@ func Score(productName, searchPhrase string) float64 {
 	return float64(matched) / float64(len(queryTokens))
 }
 
+// tokenise lowercases s, splits on whitespace, and strips common punctuation.
 func tokenise(s string) []string {
 	parts := strings.Fields(strings.ToLower(s))
 	out := make([]string, 0, len(parts))
@@ -177,6 +178,8 @@ func sortResults(rs []Result) {
 	}
 }
 
+// less reports whether Result a should be sorted before b (higher score, then
+// lower pricePerKg, then lower price).
 func less(a, b Result) bool {
 	if a.Score != b.Score {
 		return a.Score > b.Score // higher score wins

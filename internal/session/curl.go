@@ -19,6 +19,7 @@ type CurlData struct {
 	Body    *string
 }
 
+// userPathRe matches the numeric user ID segment in a Frisco API path.
 var userPathRe = regexp.MustCompile(`/users/(\d+)`)
 
 // ParseCurl parses a curl command string into its URL, method, headers, and body.
@@ -113,7 +114,8 @@ func ExtractUserID(rawURL string) string {
 	return ""
 }
 
-// Allowed header keys for session from-curl (case preserved on store).
+// fromCurlHeaderAllow is the set of header names (lowercase) that are imported
+// into the session when parsing a curl command.
 var fromCurlHeaderAllow = map[string]struct{}{
 	"authorization":    {},
 	"content-type":     {},
@@ -179,6 +181,8 @@ func ExtractRefreshTokenFromCurlBody(body *string) string {
 	return ""
 }
 
+// extractRefreshTokenValue URL-decodes raw and strips a leading pipe-delimited
+// prefix (Frisco encodes the token as "userId|token").
 func extractRefreshTokenValue(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -223,6 +227,8 @@ func ExtractRefreshTokenFromCookie(cookieHeader string) string {
 	return ""
 }
 
+// ExtractRefreshTokenFromHeaderValue extracts a refresh token from a raw
+// Cookie or Set-Cookie header value string.
 func ExtractRefreshTokenFromHeaderValue(value string) string {
 	if value == "" {
 		return ""

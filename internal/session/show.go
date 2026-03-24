@@ -1,3 +1,4 @@
+// This file contains the session redaction helper for safe display.
 package session
 
 import (

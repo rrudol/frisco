@@ -1,3 +1,5 @@
+// Package session manages the persistent Frisco CLI session stored at
+// ~/.frisco-cli/session.json (base URL, auth token, refresh token, user ID, headers).
 package session
 
 import (
@@ -47,10 +49,13 @@ func defaultSession() *Session {
 	}
 }
 
+// EnsureDir creates ~/.frisco-cli with 0700 permissions if it does not exist.
 func EnsureDir() error {
 	return os.MkdirAll(sessionDir, 0o700)
 }
 
+// Load reads the session file and returns a Session. Returns a default session
+// when the file does not yet exist.
 func Load() (*Session, error) {
 	data, err := os.ReadFile(sessionFile)
 	if err != nil {
@@ -73,6 +78,7 @@ func Load() (*Session, error) {
 	return &s, nil
 }
 
+// Save persists s to the session file with 0600 permissions.
 func Save(s *Session) error {
 	if err := EnsureDir(); err != nil {
 		return err
@@ -180,6 +186,8 @@ func NormalizeHeaders(headers map[string]string) map[string]string {
 	return out
 }
 
+// canonicalHeaderKey returns the canonical form of a known header name, or
+// original when the key is not in the recognised set.
 func canonicalHeaderKey(lowerKey, original string) string {
 	switch lowerKey {
 	case "authorization":

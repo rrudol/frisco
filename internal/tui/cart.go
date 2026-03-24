@@ -1,3 +1,5 @@
+// Package tui provides an interactive terminal UI for browsing and editing the
+// Frisco shopping cart using the Bubble Tea framework.
 package tui
 
 import (
@@ -23,6 +25,8 @@ type cartLine struct {
 	unitPrice string
 }
 
+// productDetails holds the fields fetched from the offer/products endpoint
+// used to enrich cart lines that lack name or price data.
 type productDetails struct {
 	name      string
 	unitPrice string
@@ -41,6 +45,7 @@ func RunCart(s *session.Session, uid string) error {
 	return err
 }
 
+// cartModel is the Bubble Tea model for the interactive cart screen.
 type cartModel struct {
 	sess          *session.Session
 	uid           string
@@ -51,6 +56,7 @@ type cartModel struct {
 	confirmDelete bool
 }
 
+// initialModel returns a cartModel ready for the first load.
 func initialModel(s *session.Session, uid string) cartModel {
 	return cartModel{
 		sess:   s,
@@ -60,10 +66,12 @@ func initialModel(s *session.Session, uid string) cartModel {
 	}
 }
 
+// Init returns the initial command (load cart from API).
 func (m cartModel) Init() tea.Cmd {
 	return m.loadCartCmd()
 }
 
+// Update handles key presses and async cart data messages.
 func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -156,6 +164,7 @@ func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View renders the cart screen as a string.
 func (m cartModel) View() string {
 	var b strings.Builder
 	b.WriteString("Cart — ↑↓ select  +/− quantity  d delete  r refresh  q quit\n")
@@ -198,6 +207,7 @@ func (m cartModel) View() string {
 	return b.String()
 }
 
+// loadCartCmd returns a Bubble Tea command that fetches the cart from the API.
 func (m cartModel) loadCartCmd() tea.Cmd {
 	sess := m.sess
 	uid := m.uid
@@ -216,6 +226,8 @@ func (m cartModel) loadCartCmd() tea.Cmd {
 	}
 }
 
+// putQuantityCmd returns a Bubble Tea command that PUTs a new quantity for productID
+// and then refreshes the cart.
 func (m cartModel) putQuantityCmd(productID string, quantity int) tea.Cmd {
 	sess := m.sess
 	uid := m.uid
@@ -246,6 +258,7 @@ func (m cartModel) putQuantityCmd(productID string, quantity int) tea.Cmd {
 	}
 }
 
+// clampCursor keeps c within [0, n-1], returning 0 when n is 0.
 func clampCursor(c, n int) int {
 	if n == 0 {
 		return 0
@@ -260,6 +273,8 @@ func clampCursor(c, n int) int {
 }
 
 
+// parseCartPayload extracts cart lines from a GET /cart API response,
+// trying common array key names defensively.
 func parseCartPayload(data any) ([]cartLine, error) {
 	if data == nil {
 		return nil, nil
@@ -285,6 +300,8 @@ func parseCartPayload(data any) ([]cartLine, error) {
 	return out, nil
 }
 
+// enrichCartLines fills in missing name/price fields by fetching product details
+// from the offer/products endpoint for lines that lack them.
 func enrichCartLines(sess *session.Session, uid string, lines []cartLine) []cartLine {
 	if len(lines) == 0 || sess == nil || uid == "" {
 		return lines
@@ -314,6 +331,8 @@ func enrichCartLines(sess *session.Session, uid string, lines []cartLine) []cart
 	return out
 }
 
+// missingDetailsProductIDs returns a deduplicated list of product IDs whose cart
+// lines are missing a name or unit price.
 func missingDetailsProductIDs(lines []cartLine) []string {
 	seen := make(map[string]struct{}, len(lines))
 	out := make([]string, 0, len(lines))
@@ -333,6 +352,8 @@ func missingDetailsProductIDs(lines []cartLine) []string {
 	return out
 }
 
+// fetchProductDetailsByIDs calls the offer/products endpoint for the given IDs
+// and returns a map of product ID to its display details.
 func fetchProductDetailsByIDs(sess *session.Session, uid string, productIDs []string) map[string]productDetails {
 	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/offer/products", uid)
 	query := make([]string, 0, len(productIDs))
@@ -346,6 +367,8 @@ func fetchProductDetailsByIDs(sess *session.Session, uid string, productIDs []st
 	return parseProductDetailsPayload(result, productIDs)
 }
 
+// parseProductDetailsPayload recursively walks the API response and extracts
+// name and unit price for each product ID in the allowed set.
 func parseProductDetailsPayload(data any, productIDs []string) map[string]productDetails {
 	if data == nil || len(productIDs) == 0 {
 		return nil
@@ -388,6 +411,7 @@ func parseProductDetailsPayload(data any, productIDs []string) map[string]produc
 	return out
 }
 
+// firstArray returns the first []any value found under any of the given keys in root.
 func firstArray(root map[string]any, keys ...string) []any {
 	for _, k := range keys {
 		v, ok := root[k]
@@ -401,6 +425,8 @@ func firstArray(root map[string]any, keys ...string) []any {
 	return nil
 }
 
+// lineFromMap converts a raw cart entry map into a cartLine, falling back to the
+// nested "product" map for missing fields.
 func lineFromMap(m map[string]any) cartLine {
 	id := shared.StringFieldFromMap(m, "productId", "product_id", "id", "productID", "ProductId")
 	qty, _ := intField(m, "quantity", "Quantity", "qty", "count")
@@ -426,6 +452,7 @@ func lineFromMap(m map[string]any) cartLine {
 }
 
 
+// intField returns the first integer value found under any of the given keys in m.
 func intField(m map[string]any, keys ...string) (int, bool) {
 	for _, k := range keys {
 		if v, ok := m[k]; ok {
@@ -437,6 +464,8 @@ func intField(m map[string]any, keys ...string) (int, bool) {
 	return 0, false
 }
 
+// anyToInt converts numeric any values to int, returning (0, false) for
+// unrecognised types.
 func anyToInt(v any) (int, bool) {
 	switch x := v.(type) {
 	case int:
@@ -460,6 +489,8 @@ func anyToInt(v any) (int, bool) {
 	}
 }
 
+// formatUnitPrice extracts and formats a unit price from a product or cart entry map,
+// trying multiple common key names including nested price objects.
 func formatUnitPrice(m map[string]any) string {
 	for _, k := range []string{"unitPrice", "unitGrossPrice", "grossUnitPrice", "priceGross", "grossPrice", "price"} {
 		if v, ok := m[k]; ok {
@@ -484,6 +515,8 @@ func formatUnitPrice(m map[string]any) string {
 }
 
 
+// lineTotalPrice computes quantity * unitPrice as a formatted string, returning
+// "—" when the inputs are invalid or zero.
 func lineTotalPrice(quantity int, unitPrice string) string {
 	if quantity <= 0 {
 		return "—"
