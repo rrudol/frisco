@@ -1,0 +1,114 @@
+# Format: categoryId|fraza wyszukiwania|ilość
+# ID kategorii Frisco (zawężają listing — mniej „śmieciowych” trafień niż sama fraza):
+#   18703  Warzywa i owoce (świeże, mrożone owoce/warzywa w tej gałęzi)
+#   18707  Jabłka
+#   18895  Świeże chleby
+#   18974  Nabiał, jaja, sery (szeroko)
+#   18981  Jogurty roślinne sojowe
+#   18996  Kefir / napoje mleczne
+#   19014  Jogurty (skyr itd.)
+#   19015  Jogurt naturalny
+#   19084  Serek wiejski
+#   19086  Twaróg chudy
+#   19091  Mozzarella
+#   19118  Jaja
+#   19136  Mięso i wędliny
+#   19228  Ryby świeże
+#   19380  Makaron
+#   19420  Kasza gryczana (podkategoria Kasza)
+#   19435  Ryż
+#   19454  Strączki suche
+#   19479  Cukier i słodziki (erytrytol)
+#   19518  Oleje, oliwy
+#   19552  Przyprawy (kurkuma)
+#   19700  Sosy i przeciery (passata)
+#   19807  Konserwy (ciecierzyca w słoiku)
+#   19816  Tuńczyk (konserwy rybne)
+#   19846  Warzywa konserwowe (oliwki)
+#   19991  Pestki i nasiona
+#   20028  Musli, płatki
+#   20070  Produkty sojowe (tofu)
+#   20530  Herbata zielona
+#   20547  Herbata ziołowa (pokrzywa itd.)
+#   21178  Roślinne zamienniki mleka (napój migdałowy/owsiany)
+#
+18703|pomidory malinowe|1
+18703|ogórek gruntowy|1
+18703|papryka czerwona|2
+18703|rzodkiewka|1
+18703|marchew|1
+18703|korzeń pietruszki|1
+18703|korzeń selera|1
+18703|por|1
+18703|cebula czerwona|1
+18703|czosnek|1
+18703|rukola|1
+18703|roszponka|1
+18703|mix sałat|1
+18703|szpinak świeży|1
+18703|kalarepa|1
+18703|brokuł|1
+18703|cukinia|2
+18703|fasolka szparagowa|1
+18703|seler naciowy|1
+18703|pieczarki|1
+18703|bataty|1
+18703|ziemniaki|2
+18703|szczypiorek|1
+18703|koperek świeży|1
+18703|natka pietruszki|1
+18703|bazylia świeża|1
+19700|passata pomidorowa|1
+19846|oliwki zielone|1
+18703|borówka amerykańska|1
+18703|maliny mrożone|1
+18703|truskawki mrożone|1
+18703|jagody mrożone|1
+18703|cytryna|3
+18707|jabłko|1
+18703|gruszka|1
+18703|brzoskwinia|1
+18703|kiwi|1
+18703|winogrono|1
+18703|awokado|2
+19118|jaja kurze M|1
+19136|pierś z kurczaka|1
+19136|pierś z indyka|1
+19136|wołowina gulaszowa|1
+19136|mięso z królika|1
+19136|szynka indyk|1
+19228|dorsz filet|1
+19228|łosoś świeży|1
+19816|tuńczyk w sosie własnym|1
+19228|mintaj filet|1
+19014|skyr naturalny|1
+19086|twaróg chudy|1
+19015|jogurt naturalny|2
+19084|serek wiejski lekki|2
+18996|kefir|1
+19091|mozzarella light|1
+20070|tofu naturalne|1
+21178|napój migdałowe bez cukru|1
+21178|napój owsiany bez cukru|1
+18981|jogurt sojowy naturalny|1
+18895|chleb żytni razowy|1
+18895|chleb graham|1
+19420|kasza gryczana|1
+19435|ryż basmati brązowy|1
+19454|komosa ryżowa|1
+19415|kasza pęczak|1
+20028|płatki owsiane górskie|1
+20028|płatki jaglane|1
+19380|makaron pełnoziarnisty|1
+19807|ciecierzyca konserwa|1
+19454|soczewica czerwona|1
+19518|oliwa z oliwek extra|1
+19518|olej lniany|1
+19991|siemię lniane|1
+19991|nasiona chia|1
+19991|pestki dyni|1
+19552|kurkuma mielona|1
+19479|erytrytol|1
+20530|herbata zielona liściasta|1
+20547|herbata pokrzywa|1
+19435|ryż dziki|1

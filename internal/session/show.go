@@ -11,9 +11,14 @@ func RedactedCopy(s *Session) map[string]any {
 	if s == nil {
 		return nil
 	}
-	b, _ := json.Marshal(s)
+	b, err := json.Marshal(s)
+	if err != nil {
+		return map[string]any{"error": "failed to serialize session"}
+	}
 	var m map[string]any
-	_ = json.Unmarshal(b, &m)
+	if err := json.Unmarshal(b, &m); err != nil {
+		return map[string]any{"error": "failed to serialize session"}
+	}
 	if t, ok := m["token"]; ok && t != nil {
 		m["token"] = "***"
 	}

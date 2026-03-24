@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -42,12 +43,10 @@ func newAuthRefreshTokenCmd() *cobra.Command {
 				rt = refreshTokenString(s)
 			}
 			if rt == "" {
-				return fmt.Errorf(
-					tr(
-						"Missing refresh token. Use --refresh-token or load session with session from-curl.",
-						"Brak refresh tokena. Podaj --refresh-token albo wczytaj go przez session from-curl.",
-					),
-				)
+				return errors.New(tr(
+					"Missing refresh token. Use --refresh-token or load session with session from-curl.",
+					"Brak refresh tokena. Podaj --refresh-token albo wczytaj go przez session from-curl.",
+				))
 			}
 			payload := map[string]any{
 				"grant_type":    "refresh_token",
@@ -60,7 +59,10 @@ func newAuthRefreshTokenCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			saved := false
+			expiresIn := any(nil)
 			if m, ok := result.(map[string]any); ok {
+				expiresIn = m["expires_in"]
 				if at, ok := stringField(m["access_token"]); ok && at != "" {
 					s.Token = at
 					if s.Headers == nil {
@@ -74,8 +76,14 @@ func newAuthRefreshTokenCmd() *cobra.Command {
 				if err := session.Save(s); err != nil {
 					return err
 				}
+				saved = true
 			}
-			return printJSON(result)
+			return printJSON(map[string]any{
+				"saved":               saved,
+				"token_saved":         session.TokenString(s) != "",
+				"refresh_token_saved": session.RefreshTokenString(s) != "",
+				"expires_in":          expiresIn,
+			})
 		},
 	}
 	c.Flags().StringVar(&refresh, "refresh-token", "", tr("Optional refresh token (otherwise from session).", "Opcjonalny refresh token (inaczej z sesji)."))
@@ -109,7 +117,7 @@ func newAuthLoginCmd() *cobra.Command {
 				return fmt.Errorf(tr("Invalid --login-url: %w", "Niepoprawny --login-url: %w"), err)
 			}
 			if timeoutSec <= 0 {
-				return fmt.Errorf(tr("--timeout must be > 0", "--timeout musi być > 0"))
+				return errors.New(tr("--timeout must be > 0", "--timeout musi być > 0"))
 			}
 
 			type authCapture struct {
@@ -131,34 +139,38 @@ func newAuthLoginCmd() *cobra.Command {
 			defer cancelCtx()
 
 			chromedp.ListenTarget(ctx, func(ev any) {
+				mu.Lock()
+				defer mu.Unlock()
+
 				switch e := ev.(type) {
 				case *network.EventRequestWillBeSent:
-					reqURL := e.Request.URL
-					mu.Lock()
 					if captured.UserID == "" {
-						if uid := session.ExtractUserID(reqURL); uid != "" {
+						if uid := session.ExtractUserID(e.Request.URL); uid != "" {
 							captured.UserID = uid
 						}
 					}
-					mu.Unlock()
 				case *network.EventRequestWillBeSentExtraInfo:
-					mu.Lock()
 					if captured.AccessToken == "" {
 						if token := bearerFromHeaders(e.Headers); token != "" {
 							captured.AccessToken = token
 						}
 					}
-					if captured.CookieHeader == "" {
-						if cookie := headerStringValue(e.Headers, "Cookie"); cookie != "" {
+					if cookie := headerStringValue(e.Headers, "Cookie"); cookie != "" {
+						if captured.CookieHeader == "" {
 							captured.CookieHeader = cookie
-							if captured.RefreshToken == "" {
-								if rt := session.ExtractRefreshTokenFromCookie(cookie); rt != "" {
-									captured.RefreshToken = rt
-								}
+						}
+						if captured.RefreshToken == "" {
+							if rt := session.ExtractRefreshTokenFromHeaderValue(cookie); rt != "" {
+								captured.RefreshToken = rt
 							}
 						}
 					}
-					mu.Unlock()
+				case *network.EventResponseReceivedExtraInfo:
+					if captured.RefreshToken == "" {
+						if rt := refreshTokenFromHeaders(e.Headers); rt != "" {
+							captured.RefreshToken = rt
+						}
+					}
 				}
 			})
 
@@ -177,12 +189,21 @@ func newAuthLoginCmd() *cobra.Command {
 			)
 
 			deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+			var accessDetectedAt time.Time
 			for time.Now().Before(deadline) {
 				time.Sleep(1 * time.Second)
 				mu.Lock()
 				gotToken := captured.AccessToken != ""
+				gotRefresh := captured.RefreshToken != ""
 				mu.Unlock()
-				if gotToken {
+				if gotToken && accessDetectedAt.IsZero() {
+					accessDetectedAt = time.Now()
+				}
+				if gotToken && gotRefresh {
+					break
+				}
+				// Give refresh token a short extra window after access token appears.
+				if gotToken && !accessDetectedAt.IsZero() && time.Since(accessDetectedAt) > 8*time.Second {
 					break
 				}
 			}
@@ -200,7 +221,7 @@ func newAuthLoginCmd() *cobra.Command {
 					mu.Lock()
 					captured.CookieHeader = strings.Join(pairs, "; ")
 					if captured.RefreshToken == "" {
-						if rt := session.ExtractRefreshTokenFromCookie(captured.CookieHeader); rt != "" {
+						if rt := session.ExtractRefreshTokenFromHeaderValue(captured.CookieHeader); rt != "" {
 							captured.RefreshToken = rt
 						}
 					}
@@ -216,12 +237,10 @@ func newAuthLoginCmd() *cobra.Command {
 			mu.Unlock()
 
 			if accessToken == "" {
-				return fmt.Errorf(
-					tr(
-						"Access token not detected. Try again and after login open account/cart page to trigger API requests.",
-						"Nie wykryto access tokena. Spróbuj ponownie i po zalogowaniu przejdź do strony konta lub koszyka, żeby wymusić zapytania API",
-					),
-				)
+				return errors.New(tr(
+					"Access token not detected. Try again and after login open account/cart page to trigger API requests.",
+					"Nie wykryto access tokena. Spróbuj ponownie i po zalogowaniu przejdź do strony konta lub koszyka, żeby wymusić zapytania API",
+				))
 			}
 
 			s.BaseURL = baseURL
@@ -278,6 +297,18 @@ func headerStringValue(headers network.Headers, name string) string {
 	for k := range headers {
 		if strings.EqualFold(k, name) {
 			return strings.TrimSpace(fmt.Sprint(headers[k]))
+		}
+	}
+	return ""
+}
+
+func refreshTokenFromHeaders(headers network.Headers) string {
+	for k := range headers {
+		if strings.EqualFold(k, "set-cookie") || strings.EqualFold(k, "cookie") {
+			raw := strings.TrimSpace(fmt.Sprint(headers[k]))
+			if token := session.ExtractRefreshTokenFromHeaderValue(raw); token != "" {
+				return token
+			}
 		}
 	}
 	return ""

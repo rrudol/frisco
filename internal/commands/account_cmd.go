@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -107,7 +108,7 @@ func newAccountAddressesAddCmd() *cobra.Command {
 			}
 			data, ok := raw.(map[string]any)
 			if !ok {
-				return fmt.Errorf(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+				return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
 			}
 			var body map[string]any
 			if _, has := data["shippingAddress"]; has {
@@ -189,7 +190,7 @@ func newAccountConsentsUpdateCmd() *cobra.Command {
 			}
 			body, ok := raw.(map[string]any)
 			if !ok {
-				return fmt.Errorf(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+				return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
 			}
 			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/consents", uid)
 			result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
@@ -241,11 +242,11 @@ func newAccountRulesAcceptCmd() *cobra.Command {
 				var ok bool
 				body, ok = raw.(map[string]any)
 				if !ok {
-					return fmt.Errorf(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+					return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
 				}
 			} else {
 				if len(ruleIDs) == 0 {
-					return fmt.Errorf(tr("Provide --rule-id or --payload-file.", "Podaj --rule-id albo --payload-file."))
+					return errors.New(tr("Provide --rule-id or --payload-file.", "Podaj --rule-id albo --payload-file."))
 				}
 				body = map[string]any{"acceptedRules": ruleIDs}
 			}

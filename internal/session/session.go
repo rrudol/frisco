@@ -2,10 +2,12 @@ package session
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/rrudol/frisco/internal/i18n"
 )
@@ -45,7 +47,7 @@ type Endpoint struct {
 	URL          string `json:"url"`
 }
 
-// Session mirrors frisco_cli.py session.json shape.
+// Session is persisted as ~/.frisco-cli/session.json.
 type Session struct {
 	BaseURL      string            `json:"base_url"`
 	Headers      map[string]string `json:"headers"`
@@ -89,6 +91,7 @@ func Load() (*Session, error) {
 	if s.Headers == nil {
 		s.Headers = map[string]string{}
 	}
+	s.Headers = NormalizeHeaders(s.Headers)
 	return &s, nil
 }
 
@@ -96,6 +99,10 @@ func Save(s *Session) error {
 	if err := EnsureDir(); err != nil {
 		return err
 	}
+	if s.Headers == nil {
+		s.Headers = map[string]string{}
+	}
+	s.Headers = NormalizeHeaders(s.Headers)
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
@@ -127,12 +134,10 @@ func RequireUserID(s *Session, explicit string) (string, error) {
 	}
 	uid := UserIDString(s)
 	if uid == "" {
-		return "", fmt.Errorf(
-			i18n.T(
-				"Missing user_id. Import session with 'session from-curl' using /users/{id}/... endpoint or pass --user-id.",
-				"Brak user_id. Wklej curl z endpointem /users/{id}/... przez 'session from-curl' albo podaj --user-id.",
-			),
-		)
+		return "", errors.New(i18n.T(
+			"Missing user_id. Import session with 'session from-curl' using /users/{id}/... endpoint or pass --user-id.",
+			"Brak user_id. Wklej curl z endpointem /users/{id}/... przez 'session from-curl' albo podaj --user-id.",
+		))
 	}
 	return uid, nil
 }
@@ -160,5 +165,65 @@ func RefreshTokenString(s *Session) string {
 		return v
 	default:
 		return fmt.Sprint(v)
+	}
+}
+
+// NormalizeHeaders deduplicates headers case-insensitively and uses canonical keys.
+func NormalizeHeaders(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return map[string]string{}
+	}
+	type candidate struct {
+		value string
+		rank  int
+	}
+	best := map[string]candidate{}
+	orig := map[string]string{}
+
+	for k, v := range headers {
+		lk := strings.ToLower(strings.TrimSpace(k))
+		if lk == "" {
+			continue
+		}
+		canon := canonicalHeaderKey(lk, k)
+		rank := 0
+		if k == canon {
+			rank = 2
+		} else if strings.EqualFold(k, canon) {
+			rank = 1
+		}
+		if prev, ok := best[lk]; !ok || rank > prev.rank || (rank == prev.rank && len(v) > len(prev.value)) {
+			best[lk] = candidate{value: v, rank: rank}
+			orig[lk] = canon
+		}
+	}
+
+	out := make(map[string]string, len(best))
+	for lk, cand := range best {
+		out[orig[lk]] = cand.value
+	}
+	return out
+}
+
+func canonicalHeaderKey(lowerKey, original string) string {
+	switch lowerKey {
+	case "authorization":
+		return "Authorization"
+	case "cookie":
+		return "Cookie"
+	case "content-type":
+		return "Content-Type"
+	case "accept":
+		return "Accept"
+	case "origin":
+		return "Origin"
+	case "referer":
+		return "Referer"
+	case "x-api-version":
+		return "X-Api-Version"
+	case "x-requested-with":
+		return "X-Requested-With"
+	default:
+		return original
 	}
 }

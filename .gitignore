@@ -1,4 +1,11 @@
 bin/
 .gopath/
-/frisco
-/frisco-cli
+*.har
+*.log
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
+frisco
+*.pyc

@@ -2,8 +2,11 @@ package tui
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"log"
 	"text/tabwriter"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,12 +14,18 @@ import (
 	"github.com/rrudol/frisco/internal/httpclient"
 	"github.com/rrudol/frisco/internal/i18n"
 	"github.com/rrudol/frisco/internal/session"
+	"github.com/rrudol/frisco/internal/shared"
 )
 
 // cartLine is one row from GET /cart (parsed defensively for varying API shapes).
 type cartLine struct {
 	productID string
 	quantity  int
+	name      string
+	unitPrice string
+}
+
+type productDetails struct {
 	name      string
 	unitPrice string
 }
@@ -35,12 +44,13 @@ func RunCart(s *session.Session, uid string) error {
 }
 
 type cartModel struct {
-	sess    *session.Session
-	uid     string
-	items   []cartLine
-	cursor  int
-	busy    bool
-	errText string
+	sess          *session.Session
+	uid           string
+	items         []cartLine
+	cursor        int
+	busy          bool
+	errText       string
+	confirmDelete bool
 }
 
 func initialModel(s *session.Session, uid string) cartModel {
@@ -65,6 +75,25 @@ func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		}
+		if m.confirmDelete {
+			switch msg.String() {
+			case "y", "Y", "enter":
+				if len(m.items) == 0 {
+					m.confirmDelete = false
+					return m, nil
+				}
+				line := m.items[m.cursor]
+				m.busy = true
+				m.errText = ""
+				m.confirmDelete = false
+				return m, m.putQuantityCmd(line.productID, 0)
+			case "n", "N", "esc":
+				m.confirmDelete = false
+				return m, nil
+			default:
+				return m, nil
+			}
 		}
 		if m.busy {
 			return m, nil
@@ -104,10 +133,8 @@ func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.items) == 0 {
 				return m, nil
 			}
-			line := m.items[m.cursor]
-			m.busy = true
-			m.errText = ""
-			return m, m.putQuantityCmd(line.productID, 0)
+			m.confirmDelete = true
+			return m, nil
 		case "r":
 			m.busy = true
 			m.errText = ""
@@ -117,6 +144,7 @@ func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case cartDataMsg:
 		m.busy = false
+		m.confirmDelete = false
 		if msg.err != nil {
 			m.errText = msg.err.Error()
 			return m, nil
@@ -136,6 +164,12 @@ func (m cartModel) View() string {
 		"Cart — ↑↓ select  +/− quantity  d delete  r refresh  q quit\n",
 		"Koszyk — ↑↓ wybór  +/− ilość  d usuń  r odśwież  q wyjście\n",
 	))
+	if m.confirmDelete {
+		b.WriteString(i18n.T(
+			"Confirm delete: y=yes  n=cancel\n",
+			"Potwierdź usunięcie: y=tak  n=anuluj\n",
+		))
+	}
 	if m.busy {
 		b.WriteString(i18n.T("\nLoading...\n", "\nŁadowanie...\n"))
 	}
@@ -144,7 +178,7 @@ func (m cartModel) View() string {
 		b.WriteString(i18n.T("(cart is empty)\n", "(koszyk pusty)\n"))
 	} else {
 		w := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, i18n.T("NAME\tPRODUCT ID\tQTY\tUNIT PRICE", "NAZWA\tPRODUCT ID\tILOŚĆ\tCENA JEDN."))
+		_, _ = fmt.Fprintln(w, i18n.T("NAME\tQTY\tUNIT PRICE\tTOTAL PRICE", "NAZWA\tILOŚĆ\tCENA JEDN.\tCENA ŁĄCZNA"))
 		for i, line := range m.items {
 			prefix := "  "
 			if i == m.cursor {
@@ -158,8 +192,9 @@ func (m cartModel) View() string {
 			if price == "" {
 				price = "—"
 			}
-			_, _ = fmt.Fprintf(w, "%s%s\t%s\t%d\t%s\n",
-				prefix, truncate(name, 48), line.productID, line.quantity, price)
+			total := lineTotalPrice(line.quantity, line.unitPrice)
+			_, _ = fmt.Fprintf(w, "%s%s\t%d\t%s\t%s\n",
+				prefix, shared.TruncateText(name, 48), line.quantity, price, total)
 		}
 		_ = w.Flush()
 	}
@@ -184,6 +219,7 @@ func (m cartModel) loadCartCmd() tea.Cmd {
 		if perr != nil {
 			return cartDataMsg{err: perr}
 		}
+		lines = enrichCartLines(sess, uid, lines)
 		return cartDataMsg{lines: lines}
 	}
 }
@@ -213,6 +249,7 @@ func (m cartModel) putQuantityCmd(productID string, quantity int) tea.Cmd {
 		if perr != nil {
 			return cartDataMsg{err: perr}
 		}
+		lines = enrichCartLines(sess, uid, lines)
 		return cartDataMsg{lines: lines}
 	}
 }
@@ -230,16 +267,6 @@ func clampCursor(c, n int) int {
 	return c
 }
 
-func truncate(s string, max int) string {
-	r := []rune(s)
-	if len(r) <= max {
-		return s
-	}
-	if max <= 3 {
-		return string(r[:max])
-	}
-	return string(r[:max-3]) + "..."
-}
 
 func parseCartPayload(data any) ([]cartLine, error) {
 	if data == nil {
@@ -247,7 +274,7 @@ func parseCartPayload(data any) ([]cartLine, error) {
 	}
 	root, ok := data.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf(i18n.T("expected cart JSON object", "oczekiwano obiektu JSON koszyka"))
+		return nil, errors.New(i18n.T("expected cart JSON object", "oczekiwano obiektu JSON koszyka"))
 	}
 	arr := firstArray(root,
 		"products", "items", "lineItems", "cartItems", "lines", "Lines",
@@ -266,6 +293,110 @@ func parseCartPayload(data any) ([]cartLine, error) {
 	return out, nil
 }
 
+func enrichCartLines(sess *session.Session, uid string, lines []cartLine) []cartLine {
+	if len(lines) == 0 || sess == nil || uid == "" {
+		return lines
+	}
+	ids := missingDetailsProductIDs(lines)
+	if len(ids) == 0 {
+		return lines
+	}
+	details := fetchProductDetailsByIDs(sess, uid, ids)
+	if len(details) == 0 {
+		return lines
+	}
+	out := make([]cartLine, len(lines))
+	copy(out, lines)
+	for i, line := range out {
+		d, ok := details[line.productID]
+		if !ok {
+			continue
+		}
+		if line.name == "" {
+			out[i].name = d.name
+		}
+		if line.unitPrice == "" {
+			out[i].unitPrice = d.unitPrice
+		}
+	}
+	return out
+}
+
+func missingDetailsProductIDs(lines []cartLine) []string {
+	seen := make(map[string]struct{}, len(lines))
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line.productID == "" {
+			continue
+		}
+		if line.name != "" && line.unitPrice != "" {
+			continue
+		}
+		if _, exists := seen[line.productID]; exists {
+			continue
+		}
+		seen[line.productID] = struct{}{}
+		out = append(out, line.productID)
+	}
+	return out
+}
+
+func fetchProductDetailsByIDs(sess *session.Session, uid string, productIDs []string) map[string]productDetails {
+	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/offer/products", uid)
+	query := make([]string, 0, len(productIDs))
+	for _, id := range productIDs {
+		query = append(query, fmt.Sprintf("productIds=%s", id))
+	}
+	result, err := httpclient.RequestJSON(sess, "GET", path, httpclient.RequestOpts{Query: query})
+	if err != nil {
+		log.Printf("fetchProductDetailsByIDs: %v", err)
+		return nil
+	}
+	return parseProductDetailsPayload(result, productIDs)
+}
+
+func parseProductDetailsPayload(data any, productIDs []string) map[string]productDetails {
+	if data == nil || len(productIDs) == 0 {
+		return nil
+	}
+	allowed := make(map[string]struct{}, len(productIDs))
+	for _, id := range productIDs {
+		allowed[id] = struct{}{}
+	}
+	out := map[string]productDetails{}
+
+	var walk func(v any)
+	walk = func(v any) {
+		switch t := v.(type) {
+		case map[string]any:
+			id := shared.StringFieldFromMap(t, "productId", "id", "productID", "ProductId")
+			if _, ok := allowed[id]; ok {
+				cur := out[id]
+				if cur.name == "" {
+					cur.name = shared.ProductNameFromMap(t)
+				}
+				if cur.unitPrice == "" {
+					cur.unitPrice = formatUnitPrice(t)
+				}
+				out[id] = cur
+			}
+			for _, nested := range t {
+				walk(nested)
+			}
+		case []any:
+			for _, item := range t {
+				walk(item)
+			}
+		}
+	}
+	walk(data)
+
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func firstArray(root map[string]any, keys ...string) []any {
 	for _, k := range keys {
 		v, ok := root[k]
@@ -280,10 +411,21 @@ func firstArray(root map[string]any, keys ...string) []any {
 }
 
 func lineFromMap(m map[string]any) cartLine {
-	id := stringField(m, "productId", "product_id", "id", "productID", "ProductId")
+	id := shared.StringFieldFromMap(m, "productId", "product_id", "id", "productID", "ProductId")
 	qty, _ := intField(m, "quantity", "Quantity", "qty", "count")
-	name := stringField(m, "name", "productName", "title", "displayName", "productTitle")
+	name := shared.ProductNameFromMap(m)
 	price := formatUnitPrice(m)
+	if product, ok := m["product"].(map[string]any); ok {
+		if id == "" {
+			id = shared.StringFieldFromMap(product, "productId", "product_id", "id", "productID", "ProductId")
+		}
+		if name == "" {
+			name = shared.ProductNameFromMap(product)
+		}
+		if price == "" {
+			price = formatUnitPrice(product)
+		}
+	}
 	return cartLine{
 		productID: id,
 		quantity:  qty,
@@ -292,24 +434,6 @@ func lineFromMap(m map[string]any) cartLine {
 	}
 }
 
-func stringField(m map[string]any, keys ...string) string {
-	for _, k := range keys {
-		if v, ok := m[k]; ok && v != nil {
-			switch x := v.(type) {
-			case string:
-				if x != "" {
-					return x
-				}
-			default:
-				s := strings.TrimSpace(fmt.Sprint(x))
-				if s != "" {
-					return s
-				}
-			}
-		}
-	}
-	return ""
-}
 
 func intField(m map[string]any, keys ...string) (int, bool) {
 	for _, k := range keys {
@@ -348,7 +472,7 @@ func anyToInt(v any) (int, bool) {
 func formatUnitPrice(m map[string]any) string {
 	for _, k := range []string{"unitPrice", "unitGrossPrice", "grossUnitPrice", "priceGross", "grossPrice", "price"} {
 		if v, ok := m[k]; ok {
-			if s := formatMoneyValue(v); s != "" {
+			if s := shared.FormatMoneyValue(v); s != "" {
 				return s
 			}
 		}
@@ -357,8 +481,8 @@ func formatUnitPrice(m map[string]any) string {
 	for _, k := range []string{"price", "unitPrice", "gross", "net"} {
 		if v, ok := m[k]; ok {
 			if nested, ok := v.(map[string]any); ok {
-				for _, nk := range []string{"gross", "amount", "value", "net"} {
-					if s := formatMoneyValue(nested[nk]); s != "" {
+				for _, nk := range []string{"price", "gross", "amount", "value", "net"} {
+					if s := shared.FormatMoneyValue(nested[nk]); s != "" {
 						return s
 					}
 				}
@@ -368,31 +492,19 @@ func formatUnitPrice(m map[string]any) string {
 	return ""
 }
 
-func formatMoneyValue(v any) string {
-	if v == nil {
-		return ""
+
+func lineTotalPrice(quantity int, unitPrice string) string {
+	if quantity <= 0 {
+		return "—"
 	}
-	switch x := v.(type) {
-	case float64:
-		return fmt.Sprintf("%.2f", x)
-	case float32:
-		return fmt.Sprintf("%.2f", float64(x))
-	case int:
-		return fmt.Sprintf("%d", x)
-	case int64:
-		return fmt.Sprintf("%d", x)
-	case string:
-		return strings.TrimSpace(x)
-	case map[string]any:
-		if s := formatMoneyValue(x["gross"]); s != "" {
-			return s
-		}
-		if s := formatMoneyValue(x["amount"]); s != "" {
-			return s
-		}
-		if s := formatMoneyValue(x["value"]); s != "" {
-			return s
-		}
+	raw := strings.TrimSpace(strings.ReplaceAll(unitPrice, ",", "."))
+	if raw == "" || raw == "—" || raw == "-" {
+		return "—"
 	}
-	return ""
+	price, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return "—"
+	}
+	return fmt.Sprintf("%.2f", price*float64(quantity))
 }
+

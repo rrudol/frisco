@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -9,6 +8,7 @@ import (
 
 	"github.com/rrudol/frisco/internal/httpclient"
 	"github.com/rrudol/frisco/internal/session"
+	"github.com/rrudol/frisco/internal/shared"
 )
 
 func newProductsCmd() *cobra.Command {
@@ -22,8 +22,8 @@ func newProductsCmd() *cobra.Command {
 
 func newProductsSearchCmd() *cobra.Command {
 	var (
-		search, deliveryMethod, userID string
-		pageIndex, pageSize            int
+		search, deliveryMethod, userID, categoryID string
+		pageIndex, pageSize                        int
 	)
 	c := &cobra.Command{
 		Use:   "search",
@@ -48,6 +48,9 @@ func newProductsSearchCmd() *cobra.Command {
 				"language=pl",
 				"disableAutocorrect=false",
 			}
+			if strings.TrimSpace(categoryID) != "" {
+				q = append(q, fmt.Sprintf("categoryId=%s", strings.TrimSpace(categoryID)))
+			}
 			result, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{Query: q})
 			if err != nil {
 				return err
@@ -56,6 +59,7 @@ func newProductsSearchCmd() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&search, "search", "", tr("Search phrase.", "Fraza wyszukiwania."))
+	c.Flags().StringVar(&categoryID, "category-id", "", tr("Frisco categoryId (narrows listing, e.g. 18703 Warzywa i owoce).", "Frisco categoryId (zawęża listę, np. 18703 Warzywa i owoce)."))
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
 	c.Flags().IntVar(&pageSize, "page-size", 84, "")
 	c.Flags().StringVar(&deliveryMethod, "delivery-method", "Van", "")
@@ -117,7 +121,7 @@ func newProductsNutritionCmd() *cobra.Command {
 				return printJSON(result)
 			}
 
-			nutrition := extractNutritionBlock(result)
+			nutrition := shared.ExtractNutritionBlock(result)
 			if nutrition == nil {
 				return printJSON(map[string]any{
 					"productId": productID,
@@ -140,35 +144,3 @@ func newProductsNutritionCmd() *cobra.Command {
 	return c
 }
 
-func extractNutritionBlock(payload any) any {
-	var walk func(v any) any
-	walk = func(v any) any {
-		switch t := v.(type) {
-		case map[string]any:
-			for k, value := range t {
-				lk := strings.ToLower(k)
-				if strings.Contains(lk, "nutrition") || strings.Contains(lk, "nutri") || strings.Contains(lk, "odzyw") {
-					return value
-				}
-			}
-			for _, value := range t {
-				if found := walk(value); found != nil {
-					return found
-				}
-			}
-		case []any:
-			for _, item := range t {
-				if found := walk(item); found != nil {
-					return found
-				}
-			}
-		case json.RawMessage:
-			var inner any
-			if err := json.Unmarshal(t, &inner); err == nil {
-				return walk(inner)
-			}
-		}
-		return nil
-	}
-	return walk(payload)
-}

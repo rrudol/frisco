@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "product_id": "REPLACE_WITH_FRISCO_PRODUCT_ID",
+      "quantity": 1
+    },
+    {
+      "productId": "ALSO_CAMELCASE_OK",
+      "qty": 2
+    }
+  ]
+}

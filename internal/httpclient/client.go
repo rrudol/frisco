@@ -3,10 +3,12 @@ package httpclient
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -31,6 +33,15 @@ type RequestOpts struct {
 	ExtraHeaders map[string]string
 	Client       *http.Client
 }
+
+const maxErrorBodyLen = 1024
+
+var (
+	bearerTokenRe  = regexp.MustCompile(`(?i)Bearer\s+[A-Za-z0-9\-._~+/]+=*`)
+	refreshTokenRe = regexp.MustCompile(`(?i)(refresh_token["=: ]+)([^",;\s]+)`)
+	accessTokenRe  = regexp.MustCompile(`(?i)(access_token["=: ]+)([^",;\s]+)`)
+	cookiePairRe   = regexp.MustCompile(`(?i)([a-z0-9_-]*rtoken[a-z0-9_-]*=)([^;,\s]+)`)
+)
 
 // MakeURL joins base with path or returns absolute URL.
 func MakeURL(baseURL, pathOrURL string) (string, error) {
@@ -119,7 +130,7 @@ func requestJSONWithAutoRefresh(
 	}
 
 	headers := make(map[string]string)
-	for k, v := range s.Headers {
+	for k, v := range session.NormalizeHeaders(s.Headers) {
 		headers[k] = v
 	}
 	if tok := tokenString(s); tok != "" && !headerKeyPresent(headers, "authorization") {
@@ -152,7 +163,7 @@ func requestJSONWithAutoRefresh(
 			case string:
 				bodyReader = strings.NewReader(d)
 			default:
-				return nil, fmt.Errorf(i18n.T(
+				return nil, errors.New(i18n.T(
 					"For data_format=form provide map or string.",
 					"Dla data_format=form podaj dict albo string.",
 				))
@@ -163,11 +174,11 @@ func requestJSONWithAutoRefresh(
 		case FormatRaw:
 			str, ok := opts.Data.(string)
 			if !ok {
-				return nil, fmt.Errorf(i18n.T("For data_format=raw provide string.", "Dla data_format=raw podaj string."))
+				return nil, errors.New(i18n.T("For data_format=raw provide string.", "Dla data_format=raw podaj string."))
 			}
 			bodyReader = strings.NewReader(str)
 		default:
-			return nil, fmt.Errorf(i18n.T(
+			return nil, errors.New(i18n.T(
 				"Unsupported data_format. Use: json, form, raw.",
 				"Nieobsługiwany data_format. Użyj: json, form, raw.",
 			))
@@ -202,8 +213,8 @@ func requestJSONWithAutoRefresh(
 		msg := map[string]any{
 			"status": resp.StatusCode,
 			"reason": http.StatusText(resp.StatusCode),
-			"url":    fullURL,
-			"body":   text,
+			"url":    sanitizeErrorURL(fullURL),
+			"body":   sanitizeErrorBody(text),
 		}
 		b, _ := json.MarshalIndent(msg, "", "  ")
 		return nil, fmt.Errorf("%s", string(b))
@@ -223,6 +234,31 @@ func requestJSONWithAutoRefresh(
 	return map[string]any{"status": resp.StatusCode, "body": text}, nil
 }
 
+func sanitizeErrorURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
+}
+
+func sanitizeErrorBody(body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return body
+	}
+	body = bearerTokenRe.ReplaceAllString(body, "Bearer ***")
+	body = refreshTokenRe.ReplaceAllString(body, "${1}***")
+	body = accessTokenRe.ReplaceAllString(body, "${1}***")
+	body = cookiePairRe.ReplaceAllString(body, "${1}***")
+	if len(body) > maxErrorBodyLen {
+		body = body[:maxErrorBodyLen] + "...[truncated]"
+	}
+	return body
+}
+
 func isTokenEndpoint(fullURL string) bool {
 	return strings.Contains(fullURL, "/app/commerce/connect/token")
 }
@@ -230,7 +266,7 @@ func isTokenEndpoint(fullURL string) bool {
 func refreshAccessToken(s *session.Session, client *http.Client) (bool, error) {
 	rt := session.RefreshTokenString(s)
 	if rt == "" {
-		return false, fmt.Errorf(i18n.T("missing refresh token", "brak refresh tokena"))
+		return false, errors.New(i18n.T("missing refresh token", "brak refresh tokena"))
 	}
 	payload := map[string]any{
 		"grant_type":    "refresh_token",
@@ -246,11 +282,11 @@ func refreshAccessToken(s *session.Session, client *http.Client) (bool, error) {
 	}
 	m, ok := result.(map[string]any)
 	if !ok {
-		return false, fmt.Errorf(i18n.T("unexpected token endpoint response", "nieoczekiwana odpowiedź od endpointu token"))
+		return false, errors.New(i18n.T("unexpected token endpoint response", "nieoczekiwana odpowiedź od endpointu token"))
 	}
 	accessToken, _ := m["access_token"].(string)
 	if strings.TrimSpace(accessToken) == "" {
-		return false, fmt.Errorf(i18n.T("missing access_token in refresh response", "brak access_token w odpowiedzi refresh"))
+		return false, errors.New(i18n.T("missing access_token in refresh response", "brak access_token w odpowiedzi refresh"))
 	}
 	s.Token = accessToken
 	if s.Headers == nil {

@@ -1,6 +1,8 @@
 package session
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -27,10 +29,10 @@ func ParseCurl(curlCommand string) (*CurlData, error) {
 		return nil, fmt.Errorf("shlex: %w", err)
 	}
 	if len(tokens) == 0 {
-		return nil, fmt.Errorf(i18n.T("Empty curl command.", "Pusty curl."))
+		return nil, errors.New(i18n.T("Empty curl command.", "Pusty curl."))
 	}
 	if tokens[0] != "curl" {
-		return nil, fmt.Errorf(i18n.T("Command must start with 'curl'.", "Komenda musi zaczynać się od 'curl'."))
+		return nil, errors.New(i18n.T("Command must start with 'curl'.", "Komenda musi zaczynać się od 'curl'."))
 	}
 
 	method := "GET"
@@ -79,7 +81,7 @@ func ParseCurl(curlCommand string) (*CurlData, error) {
 	}
 
 	if rawURL == "" {
-		return nil, fmt.Errorf(i18n.T("Could not find URL in curl.", "Nie udało się znaleźć URL w curl."))
+		return nil, errors.New(i18n.T("Could not find URL in curl.", "Nie udało się znaleźć URL w curl."))
 	}
 
 	return &CurlData{Method: method, URL: rawURL, Headers: headers, Body: body}, nil
@@ -134,8 +136,10 @@ func ApplyFromCurl(s *Session, c *CurlData) {
 			s.Headers[k] = v
 		}
 	}
+	s.Headers = NormalizeHeaders(s.Headers)
 	if t := ExtractToken(c.Headers); t != "" {
 		s.Token = t
+		s.Headers["Authorization"] = "Bearer " + t
 	}
 	if rt := ExtractRefreshTokenFromCurlBody(c.Body); rt != "" {
 		s.RefreshToken = rt
@@ -162,19 +166,40 @@ func ExtractRefreshTokenFromCurlBody(body *string) string {
 	}
 	vals, err := url.ParseQuery(*body)
 	if err != nil {
-		return ""
-	}
-	if v := vals.Get("refresh_token"); v != "" {
+		// Continue with JSON fallback.
+	} else if v := vals.Get("refresh_token"); v != "" {
 		return v
+	}
+
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(*body), &obj); err == nil {
+		if v, ok := obj["refresh_token"].(string); ok && v != "" {
+			return v
+		}
 	}
 	return ""
 }
 
-// ExtractRefreshTokenFromCookie reads rtokenN from Cookie header.
+func extractRefreshTokenValue(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if dec, err := url.QueryUnescape(raw); err == nil && dec != "" {
+		raw = dec
+	}
+	if i := strings.IndexByte(raw, '|'); i >= 0 {
+		return strings.TrimSpace(raw[i+1:])
+	}
+	return raw
+}
+
+// ExtractRefreshTokenFromCookie reads token from cookie-like header values.
 func ExtractRefreshTokenFromCookie(cookieHeader string) string {
 	if cookieHeader == "" {
 		return ""
 	}
+	// Handle both "Cookie: a=b; rtokenN=..." and Set-Cookie-like chunks.
 	for _, part := range strings.Split(cookieHeader, ";") {
 		part = strings.TrimSpace(part)
 		idx := strings.IndexByte(part, '=')
@@ -183,12 +208,28 @@ func ExtractRefreshTokenFromCookie(cookieHeader string) string {
 		}
 		k := strings.TrimSpace(part[:idx])
 		v := strings.TrimSpace(part[idx+1:])
-		if k == "rtokenN" {
-			if i := strings.IndexByte(v, '|'); i >= 0 {
-				return v[i+1:]
+		lk := strings.ToLower(k)
+		if strings.Contains(lk, "rtoken") {
+			if token := extractRefreshTokenValue(v); token != "" {
+				return token
 			}
-			return v
 		}
+	}
+
+	// Fallback: Set-Cookie can appear as multiline/combined string.
+	re := regexp.MustCompile(`(?i)([a-z0-9_-]*rtoken[a-z0-9_-]*)=([^;\s,]+)`)
+	if m := re.FindStringSubmatch(cookieHeader); len(m) > 2 {
+		return extractRefreshTokenValue(m[2])
+	}
+	return ""
+}
+
+func ExtractRefreshTokenFromHeaderValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	if t := ExtractRefreshTokenFromCookie(value); t != "" {
+		return t
 	}
 	return ""
 }

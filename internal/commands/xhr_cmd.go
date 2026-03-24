@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -121,7 +122,7 @@ func newXHRCallCmd() *cobra.Command {
 				case "raw":
 					strPayload, ok := payload.(string)
 					if !ok {
-						return fmt.Errorf(tr("For data_format=raw provide string.", "Dla data_format=raw podaj string."))
+						return errors.New(tr("For data_format=raw provide string.", "Dla data_format=raw podaj string."))
 					}
 					opts.Data = strPayload
 					opts.DataFormat = httpclient.FormatRaw

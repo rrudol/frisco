@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -77,20 +78,20 @@ func newReservationCalendarCmd() *cobra.Command {
 			}
 			shippingAddress, ok := raw.(map[string]any)
 			if !ok {
-				return fmt.Errorf(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
+				return errors.New(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
 			}
 			body := map[string]any{"shippingAddress": shippingAddress}
 			var path string
 			if date != "" {
 				parts := strings.Split(date, "-")
 				if len(parts) != 3 {
-					return fmt.Errorf(tr("Date must be in format YYYY-M-D or YYYY-MM-DD", "Data musi mieć format YYYY-M-D lub YYYY-MM-DD"))
+					return errors.New(tr("Date must be in format YYYY-M-D or YYYY-MM-DD", "Data musi mieć format YYYY-M-D lub YYYY-MM-DD"))
 				}
 				y, err1 := strconv.Atoi(parts[0])
 				m, err2 := strconv.Atoi(parts[1])
 				d, err3 := strconv.Atoi(parts[2])
 				if err1 != nil || err2 != nil || err3 != nil {
-					return fmt.Errorf(tr("Date must be in format YYYY-M-D or YYYY-MM-DD", "Data musi mieć format YYYY-M-D lub YYYY-MM-DD"))
+					return errors.New(tr("Date must be in format YYYY-M-D or YYYY-MM-DD", "Data musi mieć format YYYY-M-D lub YYYY-MM-DD"))
 				}
 				path = fmt.Sprintf("/app/commerce/api/v2/users/%s/calendar/Van/%d/%d/%d", uid, y, m, d)
 			} else {
@@ -121,7 +122,7 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 	}
 	list, ok := data.([]any)
 	if !ok || len(list) == 0 {
-		return nil, fmt.Errorf(tr("No saved user addresses.", "Brak zapisanych adresów użytkownika."))
+		return nil, errors.New(tr("No saved user addresses.", "Brak zapisanych adresów użytkownika."))
 	}
 	var preferred map[string]any
 	for _, item := range list {
@@ -141,7 +142,7 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 		}
 	}
 	if chosen == nil {
-		return nil, fmt.Errorf(tr("No saved user addresses.", "Brak zapisanych adresów użytkownika."))
+		return nil, errors.New(tr("No saved user addresses.", "Brak zapisanych adresów użytkownika."))
 	}
 	if sa, ok := chosen["shippingAddress"].(map[string]any); ok {
 		return sa, nil
@@ -287,7 +288,7 @@ func newReservationSlotsCmd() *cobra.Command {
 				var ok bool
 				shippingAddress, ok = raw.(map[string]any)
 				if !ok {
-					return fmt.Errorf(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
+					return errors.New(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
 				}
 			} else {
 				shippingAddress, err = getShippingAddressFromAccount(s, uid)
@@ -367,7 +368,7 @@ func newReservationReserveCmd() *cobra.Command {
 				var ok bool
 				shippingAddress, ok = raw.(map[string]any)
 				if !ok {
-					return fmt.Errorf(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
+					return errors.New(tr("Address file must contain a JSON object.", "Plik z adresem musi zawierać obiekt JSON."))
 				}
 			} else {
 				shippingAddress, err = getShippingAddressFromAccount(s, uid)
@@ -386,7 +387,7 @@ func newReservationReserveCmd() *cobra.Command {
 			}
 			windows := extractReservableWindows(dayData)
 			if len(windows) == 0 {
-				return fmt.Errorf(tr("No reservable slots for given date.", "Brak dostępnych slotów rezerwacji dla podanej daty."))
+				return errors.New(tr("No reservable slots for given date.", "Brak dostępnych slotów rezerwacji dla podanej daty."))
 			}
 			var selected map[string]any
 			var possible []string
@@ -463,7 +464,7 @@ func newReservationPlanCmd() *cobra.Command {
 			}
 			payload, ok := raw.(map[string]any)
 			if !ok {
-				return fmt.Errorf(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
+				return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
 			}
 			path := fmt.Sprintf("/app/commerce/api/v2/users/%s/cart/reservation", uid)
 			result, err := httpclient.RequestJSON(s, "POST", path, httpclient.RequestOpts{

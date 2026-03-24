@@ -1,10 +1,13 @@
 package commands
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/spf13/cobra"
 
+	"github.com/rrudol/frisco/internal/httpclient"
 	"github.com/rrudol/frisco/internal/session"
 )
 
@@ -13,7 +16,7 @@ func newSessionCmd() *cobra.Command {
 		Use:   "session",
 		Short: tr("Manage session (token, headers, user_id).", "Zarządzanie sesją (token, headers, user_id)."),
 	}
-	cmd.AddCommand(newSessionFromCurlCmd(), newSessionShowCmd())
+	cmd.AddCommand(newSessionFromCurlCmd(), newSessionShowCmd(), newSessionVerifyCmd())
 	return cmd
 }
 
@@ -61,6 +64,50 @@ func newSessionShowCmd() *cobra.Command {
 			return printJSON(session.RedactedCopy(s))
 		},
 	}
+}
+
+func newSessionVerifyCmd() *cobra.Command {
+	var userID string
+	c := &cobra.Command{
+		Use:   "verify",
+		Short: tr(
+			"Verify session has token and user_id; GET cart must succeed.",
+			"Sprawdź sesję: token i user_id; GET koszyka musi się udać.",
+		),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := session.Load()
+			if err != nil {
+				return err
+			}
+			if session.TokenString(s) == "" {
+				return errors.New(
+					tr(
+						"No token in session. Use session from-curl or auth login.",
+						"Brak tokenu w sesji. Użyj session from-curl albo auth login.",
+					),
+				)
+			}
+			uid, err := session.RequireUserID(s, userID)
+			if err != nil {
+				return err
+			}
+			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/cart", uid)
+			_, err = httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
+			if err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintln(
+				cmd.OutOrStdout(),
+				tr(
+					"Session OK: cart API responded successfully.",
+					"Sesja OK: API koszyka odpowiedziało poprawnie.",
+				),
+			)
+			return nil
+		},
+	}
+	c.Flags().StringVar(&userID, "user-id", "", "")
+	return c
 }
 
 func tokenSaved(s *session.Session) bool {

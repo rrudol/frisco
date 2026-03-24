@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -21,9 +22,10 @@ func Execute() error {
 	return NewRootCmd().Execute()
 }
 
-// NewRootCmd builds the full CLI tree (parity with frisco_cli.py argparse).
+// NewRootCmd builds the full CLI command tree.
 func NewRootCmd() *cobra.Command {
 	lang := string(i18n.Current())
+	format := outputFormat
 	root := &cobra.Command{
 		Use: "frisco",
 		Short: tr(
@@ -43,6 +45,17 @@ func NewRootCmd() *cobra.Command {
 				)
 			}
 			i18n.Set(parsed)
+			format = strings.ToLower(strings.TrimSpace(format))
+			if format == "" {
+				format = "table"
+			}
+			if format != "table" && format != "json" {
+				return fmt.Errorf(
+					tr("Unsupported --format: %s (use table or json)", "Nieobsługiwany --format: %s (użyj table albo json)"),
+					format,
+				)
+			}
+			outputFormat = format
 			return nil
 		},
 	}
@@ -55,6 +68,12 @@ func NewRootCmd() *cobra.Command {
 		string(i18n.Current()),
 		tr("Output language: en or pl.", "Język komunikatów: en albo pl."),
 	)
+	root.PersistentFlags().StringVar(
+		&format,
+		"format",
+		"table",
+		tr("Output format: table or json.", "Format wyjścia: table albo json."),
+	)
 
 	root.AddCommand(
 		newSessionCmd(),
@@ -66,6 +85,7 @@ func NewRootCmd() *cobra.Command {
 		newAccountCmd(),
 		newOrdersCmd(),
 		newAuthCmd(),
+		newMCPCmd(),
 	)
 	return root
 }
