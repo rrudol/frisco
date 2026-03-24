@@ -54,7 +54,7 @@ func newCartAddBatchCmd() *cobra.Command {
 				return printCartBatchDryRun(lines)
 			}
 			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/cart", uid)
-			// Frisco PUT zastępuje cały koszyk — scalamy z aktualnym GET, potem jeden PUT.
+			// Frisco PUT replaces the entire cart — merge with current GET, then one PUT.
 			current, err := httpclient.RequestJSON(s, "GET", path, httpclient.RequestOpts{})
 			if err != nil {
 				return err
