@@ -11,7 +11,7 @@ import (
 func newHarCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "har",
-		Short: "Import/obsługa HAR.",
+		Short: tr("HAR import and management.", "Import/obsługa HAR."),
 	}
 	cmd.AddCommand(newHarImportCmd())
 	return cmd
@@ -21,7 +21,7 @@ func newHarImportCmd() *cobra.Command {
 	var path string
 	c := &cobra.Command{
 		Use:   "import",
-		Short: "Importuj endpointy XHR z HAR.",
+		Short: tr("Import XHR endpoints from HAR.", "Importuj endpointy XHR z HAR."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			endpoints, err := session.ParseHarXHR(path)
 			if err != nil {
@@ -42,10 +42,14 @@ func newHarImportCmd() *cobra.Command {
 			if err := session.Save(s); err != nil {
 				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Zaimportowano XHR: %d unikalnych endpointów.\n", len(endpoints))
+			_, err = fmt.Fprintf(
+				cmd.OutOrStdout(),
+				tr("Imported XHR: %d unique endpoints.\n", "Zaimportowano XHR: %d unikalnych endpointów.\n"),
+				len(endpoints),
+			)
 			return err
 		},
 	}
-	c.Flags().StringVar(&path, "path", session.DefaultHARPath(), "Ścieżka do pliku HAR.")
+	c.Flags().StringVar(&path, "path", session.DefaultHARPath(), tr("Path to HAR file.", "Ścieżka do pliku HAR."))
 	return c
 }

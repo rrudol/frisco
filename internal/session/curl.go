@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/shlex"
+	"github.com/rrudol/frisco/internal/i18n"
 )
 
 // CurlData mirrors Python parse_curl result.
@@ -26,10 +27,10 @@ func ParseCurl(curlCommand string) (*CurlData, error) {
 		return nil, fmt.Errorf("shlex: %w", err)
 	}
 	if len(tokens) == 0 {
-		return nil, fmt.Errorf("Pusty curl.")
+		return nil, fmt.Errorf(i18n.T("Empty curl command.", "Pusty curl."))
 	}
 	if tokens[0] != "curl" {
-		return nil, fmt.Errorf("Komenda musi zaczynać się od 'curl'.")
+		return nil, fmt.Errorf(i18n.T("Command must start with 'curl'.", "Komenda musi zaczynać się od 'curl'."))
 	}
 
 	method := "GET"
@@ -78,7 +79,7 @@ func ParseCurl(curlCommand string) (*CurlData, error) {
 	}
 
 	if rawURL == "" {
-		return nil, fmt.Errorf("Nie udało się znaleźć URL w curl.")
+		return nil, fmt.Errorf(i18n.T("Could not find URL in curl.", "Nie udało się znaleźć URL w curl."))
 	}
 
 	return &CurlData{Method: method, URL: rawURL, Headers: headers, Body: body}, nil

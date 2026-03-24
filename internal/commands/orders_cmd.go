@@ -13,7 +13,7 @@ import (
 func newOrdersCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "orders",
-		Short: "Szczegóły zamówień.",
+		Short: tr("Order details.", "Szczegóły zamówień."),
 	}
 	cmd.AddCommand(
 		newOrdersListCmd(),
@@ -133,7 +133,7 @@ func newOrdersListCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "list",
-		Short: "Lista zamówień.",
+		Short: tr("Order list.", "Lista zamówień."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -230,8 +230,8 @@ func newOrdersListCmd() *cobra.Command {
 	}
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
 	c.Flags().IntVar(&pageSize, "page-size", 10, "")
-	c.Flags().BoolVar(&allPages, "all-pages", false, "Pobierz wszystkie strony.")
-	c.Flags().BoolVar(&rawOut, "raw", false, "Zwróć surową odpowiedź API.")
+	c.Flags().BoolVar(&allPages, "all-pages", false, tr("Fetch all pages.", "Pobierz wszystkie strony."))
+	c.Flags().BoolVar(&rawOut, "raw", false, tr("Return raw API response.", "Zwróć surową odpowiedź API."))
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
 }
@@ -240,7 +240,7 @@ func newOrdersGetCmd() *cobra.Command {
 	var userID, orderID string
 	c := &cobra.Command{
 		Use:   "get",
-		Short: "Szczegóły jednego zamówienia.",
+		Short: tr("Single order details.", "Szczegóły jednego zamówienia."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -268,7 +268,7 @@ func newOrdersDeliveryCmd() *cobra.Command {
 	var userID, orderID string
 	c := &cobra.Command{
 		Use:   "delivery",
-		Short: "Dostawa dla zamówienia.",
+		Short: tr("Delivery details for order.", "Dostawa dla zamówienia."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -296,7 +296,7 @@ func newOrdersPaymentsCmd() *cobra.Command {
 	var userID, orderID string
 	c := &cobra.Command{
 		Use:   "payments",
-		Short: "Płatności dla zamówienia.",
+		Short: tr("Payments for order.", "Płatności dla zamówienia."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {

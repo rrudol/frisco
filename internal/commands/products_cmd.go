@@ -14,7 +14,7 @@ import (
 func newProductsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "products",
-		Short: "Operacje produktowe.",
+		Short: tr("Product operations.", "Operacje produktowe."),
 	}
 	cmd.AddCommand(newProductsSearchCmd(), newProductsByIDsCmd(), newProductsNutritionCmd())
 	return cmd
@@ -27,7 +27,7 @@ func newProductsSearchCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "search",
-		Short: "Szukaj produktów.",
+		Short: tr("Search products.", "Szukaj produktów."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -55,7 +55,7 @@ func newProductsSearchCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&search, "search", "", "Fraza wyszukiwania.")
+	c.Flags().StringVar(&search, "search", "", tr("Search phrase.", "Fraza wyszukiwania."))
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")
 	c.Flags().IntVar(&pageSize, "page-size", 84, "")
 	c.Flags().StringVar(&deliveryMethod, "delivery-method", "Van", "")
@@ -69,7 +69,7 @@ func newProductsByIDsCmd() *cobra.Command {
 	var productIDs []string
 	c := &cobra.Command{
 		Use:   "by-ids",
-		Short: "Pobierz produkty po productIds.",
+		Short: tr("Fetch products by productIds.", "Pobierz produkty po productIds."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -102,7 +102,7 @@ func newProductsNutritionCmd() *cobra.Command {
 	var rawOutput bool
 	c := &cobra.Command{
 		Use:   "nutrition",
-		Short: "Pobierz wartości odżywcze produktu (jeśli dostępne).",
+		Short: tr("Fetch product nutrition values (if available).", "Pobierz wartości odżywcze produktu (jeśli dostępne)."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -121,7 +121,10 @@ func newProductsNutritionCmd() *cobra.Command {
 			if nutrition == nil {
 				return printJSON(map[string]any{
 					"productId": productID,
-					"message":   "Brak jawnych wartości odżywczych w tym endpointcie. Użyj --raw, żeby zobaczyć pełną odpowiedź.",
+					"message": tr(
+						"No explicit nutrition values found in this endpoint. Use --raw to inspect full response.",
+						"Brak jawnych wartości odżywczych w tym endpointcie. Użyj --raw, żeby zobaczyć pełną odpowiedź.",
+					),
 				})
 			}
 			return printJSON(map[string]any{
@@ -131,8 +134,8 @@ func newProductsNutritionCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringVar(&productID, "product-id", "", "ID produktu")
-	c.Flags().BoolVar(&rawOutput, "raw", false, "Pokaż pełną odpowiedź API")
+	c.Flags().StringVar(&productID, "product-id", "", tr("Product ID", "ID produktu"))
+	c.Flags().BoolVar(&rawOutput, "raw", false, tr("Show full API response", "Pokaż pełną odpowiedź API"))
 	_ = c.MarkFlagRequired("product-id")
 	return c
 }

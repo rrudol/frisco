@@ -11,7 +11,7 @@ import (
 func newSessionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "session",
-		Short: "Zarządzanie sesją (token, headers, user_id).",
+		Short: tr("Manage session (token, headers, user_id).", "Zarządzanie sesją (token, headers, user_id)."),
 	}
 	cmd.AddCommand(newSessionFromCurlCmd(), newSessionShowCmd())
 	return cmd
@@ -21,7 +21,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 	var curlStr string
 	c := &cobra.Command{
 		Use:   "from-curl",
-		Short: "Wczytaj sesję z komendy curl.",
+		Short: tr("Load session from curl command.", "Wczytaj sesję z komendy curl."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cd, err := session.ParseCurl(curlStr)
 			if err != nil {
@@ -35,7 +35,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 			if err := session.Save(s); err != nil {
 				return err
 			}
-			_, _ = cmd.OutOrStdout().Write([]byte("Zapisano sesję na podstawie curl.\n"))
+			_, _ = cmd.OutOrStdout().Write([]byte(tr("Session saved from curl.\n", "Zapisano sesję na podstawie curl.\n")))
 			return printJSON(map[string]any{
 				"base_url":      s.BaseURL,
 				"user_id":       s.UserID,
@@ -44,7 +44,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 			})
 		},
 	}
-	c.Flags().StringVar(&curlStr, "curl", "", "Cała komenda curl w cudzysłowie.")
+	c.Flags().StringVar(&curlStr, "curl", "", tr("Full curl command in quotes.", "Cała komenda curl w cudzysłowie."))
 	_ = c.MarkFlagRequired("curl")
 	return c
 }
@@ -52,7 +52,7 @@ func newSessionFromCurlCmd() *cobra.Command {
 func newSessionShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
-		Short: "Pokaż aktualną sesję (wrażliwe dane ukryte).",
+		Short: tr("Show current session (sensitive values redacted).", "Pokaż aktualną sesję (wrażliwe dane ukryte)."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {

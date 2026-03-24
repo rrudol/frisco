@@ -21,7 +21,7 @@ const defaultLoginURL = "https://www.frisco.pl/login"
 func newAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Autoryzacja i odświeżanie tokena.",
+		Short: tr("Authorization and token refresh.", "Autoryzacja i odświeżanie tokena."),
 	}
 	cmd.AddCommand(newAuthRefreshTokenCmd(), newAuthLoginCmd())
 	return cmd
@@ -31,7 +31,7 @@ func newAuthRefreshTokenCmd() *cobra.Command {
 	var refresh string
 	c := &cobra.Command{
 		Use:   "refresh-token",
-		Short: "Odśwież access token przez refresh token.",
+		Short: tr("Refresh access token via refresh token.", "Odśwież access token przez refresh token."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -42,7 +42,12 @@ func newAuthRefreshTokenCmd() *cobra.Command {
 				rt = refreshTokenString(s)
 			}
 			if rt == "" {
-				return fmt.Errorf("Brak refresh tokena. Podaj --refresh-token albo wczytaj go przez session from-curl.")
+				return fmt.Errorf(
+					tr(
+						"Missing refresh token. Use --refresh-token or load session with session from-curl.",
+						"Brak refresh tokena. Podaj --refresh-token albo wczytaj go przez session from-curl.",
+					),
+				)
 			}
 			payload := map[string]any{
 				"grant_type":    "refresh_token",
@@ -73,7 +78,7 @@ func newAuthRefreshTokenCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&refresh, "refresh-token", "", "Opcjonalny refresh token (inaczej z sesji).")
+	c.Flags().StringVar(&refresh, "refresh-token", "", tr("Optional refresh token (otherwise from session).", "Opcjonalny refresh token (inaczej z sesji)."))
 	return c
 }
 
@@ -82,8 +87,11 @@ func newAuthLoginCmd() *cobra.Command {
 	var timeoutSec int
 
 	c := &cobra.Command{
-		Use:   "login",
-		Short: "Interaktywne logowanie przez przeglądarkę i automatyczny zapis sesji.",
+		Use: "login",
+		Short: tr(
+			"Interactive browser login and automatic session save.",
+			"Interaktywne logowanie przez przeglądarkę i automatyczny zapis sesji.",
+		),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -98,10 +106,10 @@ func newAuthLoginCmd() *cobra.Command {
 				loginURL = defaultLoginURL
 			}
 			if _, err := url.ParseRequestURI(loginURL); err != nil {
-				return fmt.Errorf("Niepoprawny --login-url: %w", err)
+				return fmt.Errorf(tr("Invalid --login-url: %w", "Niepoprawny --login-url: %w"), err)
 			}
 			if timeoutSec <= 0 {
-				return fmt.Errorf("--timeout musi być > 0")
+				return fmt.Errorf(tr("--timeout must be > 0", "--timeout musi być > 0"))
 			}
 
 			type authCapture struct {
@@ -158,9 +166,15 @@ func newAuthLoginCmd() *cobra.Command {
 				network.Enable(),
 				chromedp.Navigate(loginURL),
 			); err != nil {
-				return fmt.Errorf("Nie udało się uruchomić przeglądarki logowania: %w", err)
+				return fmt.Errorf(tr("Could not start login browser: %w", "Nie udało się uruchomić przeglądarki logowania: %w"), err)
 			}
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Otwarta przeglądarka. Zaloguj się ręcznie, CLI wykryje token i zapisze sesję.")
+			_, _ = fmt.Fprintln(
+				cmd.OutOrStdout(),
+				tr(
+					"Browser opened. Log in manually and CLI will capture token and save session.",
+					"Otwarta przeglądarka. Zaloguj się ręcznie, CLI wykryje token i zapisze sesję.",
+				),
+			)
 
 			deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
 			for time.Now().Before(deadline) {
@@ -203,7 +217,10 @@ func newAuthLoginCmd() *cobra.Command {
 
 			if accessToken == "" {
 				return fmt.Errorf(
-					"Nie wykryto access tokena. Spróbuj ponownie i po zalogowaniu przejdź do strony konta lub koszyka, żeby wymusić zapytania API",
+					tr(
+						"Access token not detected. Try again and after login open account/cart page to trigger API requests.",
+						"Nie wykryto access tokena. Spróbuj ponownie i po zalogowaniu przejdź do strony konta lub koszyka, żeby wymusić zapytania API",
+					),
 				)
 			}
 
@@ -238,8 +255,8 @@ func newAuthLoginCmd() *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVar(&loginURL, "login-url", defaultLoginURL, "URL startowy do logowania.")
-	c.Flags().IntVar(&timeoutSec, "timeout", 180, "Maksymalny czas oczekiwania na token (sekundy).")
+	c.Flags().StringVar(&loginURL, "login-url", defaultLoginURL, tr("Login start URL.", "URL startowy do logowania."))
+	c.Flags().IntVar(&timeoutSec, "timeout", 180, tr("Maximum wait time for token (seconds).", "Maksymalny czas oczekiwania na token (sekundy)."))
 	return c
 }
 

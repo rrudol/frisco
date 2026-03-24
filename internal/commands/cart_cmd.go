@@ -14,7 +14,7 @@ func newCartCmd() *cobra.Command {
 	var userID string
 	cmd := &cobra.Command{
 		Use:   "cart",
-		Short: "Operacje na koszyku.",
+		Short: tr("Cart operations.", "Operacje na koszyku."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -36,7 +36,7 @@ func newCartShowCmd() *cobra.Command {
 	var userID string
 	c := &cobra.Command{
 		Use:   "show",
-		Short: "Pobierz koszyk.",
+		Short: tr("Fetch cart.", "Pobierz koszyk."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -63,7 +63,7 @@ func newCartAddCmd() *cobra.Command {
 	var quantity int
 	c := &cobra.Command{
 		Use:   "add",
-		Short: "Dodaj/ustaw ilość produktu w koszyku.",
+		Short: tr("Add/set product quantity in cart.", "Dodaj/ustaw ilość produktu w koszyku."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -100,7 +100,7 @@ func newCartRemoveCmd() *cobra.Command {
 	var userID, productID string
 	c := &cobra.Command{
 		Use:   "remove",
-		Short: "Usuń produkt z koszyka (quantity=0).",
+		Short: tr("Remove product from cart (quantity=0).", "Usuń produkt z koszyka (quantity=0)."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {

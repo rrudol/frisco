@@ -13,7 +13,7 @@ import (
 func newXHRCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "xhr",
-		Short: "Niskopoziomowy dostęp do endpointów XHR.",
+		Short: tr("Low-level access to XHR endpoints.", "Niskopoziomowy dostęp do endpointów XHR."),
 	}
 	cmd.AddCommand(newXHRListCmd(), newXHRCallCmd())
 	return cmd
@@ -23,7 +23,7 @@ func newXHRListCmd() *cobra.Command {
 	var contains string
 	c := &cobra.Command{
 		Use:   "list",
-		Short: "Wylistuj zaimportowane endpointy XHR.",
+		Short: tr("List imported XHR endpoints.", "Wylistuj zaimportowane endpointy XHR."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -31,7 +31,10 @@ func newXHRListCmd() *cobra.Command {
 			}
 			endpoints := s.Endpoints
 			if len(endpoints) == 0 {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Brak endpointów w sesji. Uruchom: har import")
+				_, _ = fmt.Fprintln(
+					cmd.OutOrStdout(),
+					tr("No endpoints in session. Run: har import", "Brak endpointów w sesji. Uruchom: har import"),
+				)
 				return nil
 			}
 			filtered := endpoints
@@ -54,11 +57,11 @@ func newXHRListCmd() *cobra.Command {
 				}
 				_, _ = fmt.Fprintf(out, "%-6s %s%s\n", ep.Method, ep.PathTemplate, q)
 			}
-			_, _ = fmt.Fprintf(out, "\nRazem: %d\n", len(filtered))
+			_, _ = fmt.Fprintf(out, tr("\nTotal: %d\n", "\nRazem: %d\n"), len(filtered))
 			return nil
 		},
 	}
-	c.Flags().StringVar(&contains, "contains", "", "Filtr po fragmencie ścieżki/metody.")
+	c.Flags().StringVar(&contains, "contains", "", tr("Filter by path/method fragment.", "Filtr po fragmencie ścieżki/metody."))
 	return c
 }
 
@@ -70,7 +73,7 @@ func newXHRCallCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "call",
-		Short: "Wywołaj dowolny endpoint.",
+		Short: tr("Call any endpoint.", "Wywołaj dowolny endpoint."),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := session.Load()
 			if err != nil {
@@ -84,7 +87,10 @@ func newXHRCallCmd() *cobra.Command {
 			for _, h := range headers {
 				idx := strings.IndexByte(h, ':')
 				if idx < 0 {
-					return fmt.Errorf("Zły nagłówek: %s. Oczekiwane Key: Value", h)
+					return fmt.Errorf(
+						tr("Bad header: %s. Expected Key: Value", "Zły nagłówek: %s. Oczekiwane Key: Value"),
+						h,
+					)
 				}
 				extra[strings.TrimSpace(h[:idx])] = strings.TrimSpace(h[idx+1:])
 			}
@@ -115,12 +121,12 @@ func newXHRCallCmd() *cobra.Command {
 				case "raw":
 					strPayload, ok := payload.(string)
 					if !ok {
-						return fmt.Errorf("Dla data_format=raw podaj string.")
+						return fmt.Errorf(tr("For data_format=raw provide string.", "Dla data_format=raw podaj string."))
 					}
 					opts.Data = strPayload
 					opts.DataFormat = httpclient.FormatRaw
 				default:
-					return fmt.Errorf("nieobsługiwany --data-format: %s", format)
+					return fmt.Errorf(tr("unsupported --data-format: %s", "nieobsługiwany --data-format: %s"), format)
 				}
 			}
 			result, err := httpclient.RequestJSON(s, method, pathOrURL, opts)
@@ -130,12 +136,12 @@ func newXHRCallCmd() *cobra.Command {
 			return printJSON(result)
 		},
 	}
-	c.Flags().StringVar(&method, "method", "", "HTTP method, np. GET/POST/PUT/DELETE")
-	c.Flags().StringVar(&pathOrURL, "path-or-url", "", "Ścieżka względna lub pełny URL.")
-	c.Flags().StringArrayVar(&query, "query", nil, "Parametr query key=value (powtarzalny).")
-	c.Flags().StringArrayVar(&headers, "header", nil, "Nagłówek Key: Value (powtarzalny).")
-	c.Flags().StringVar(&dataStr, "data", "", "JSON body albo key=value&k2=v2")
-	c.Flags().StringVar(&dataFormat, "data-format", "auto", "Format body: auto/json/form/raw")
+	c.Flags().StringVar(&method, "method", "", tr("HTTP method, e.g. GET/POST/PUT/DELETE", "HTTP method, np. GET/POST/PUT/DELETE"))
+	c.Flags().StringVar(&pathOrURL, "path-or-url", "", tr("Relative path or full URL.", "Ścieżka względna lub pełny URL."))
+	c.Flags().StringArrayVar(&query, "query", nil, tr("Query parameter key=value (repeatable).", "Parametr query key=value (powtarzalny)."))
+	c.Flags().StringArrayVar(&headers, "header", nil, tr("Header Key: Value (repeatable).", "Nagłówek Key: Value (powtarzalny)."))
+	c.Flags().StringVar(&dataStr, "data", "", tr("JSON body or key=value&k2=v2", "JSON body albo key=value&k2=v2"))
+	c.Flags().StringVar(&dataFormat, "data-format", "auto", tr("Body format: auto/json/form/raw", "Format body: auto/json/form/raw"))
 	_ = c.MarkFlagRequired("method")
 	_ = c.MarkFlagRequired("path-or-url")
 	return c
