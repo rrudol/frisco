@@ -45,11 +45,6 @@ func registerAccountSessionAuthTools(server *mcp.Server) {
 	}, toolAccountConsentsUpdate)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "account_rules_accept",
-		Description: "Accept account rules (PUT /users/{id}/rules).",
-	}, toolAccountRulesAccept)
-
-	mcp.AddTool(server, &mcp.Tool{
 		Name:        "account_vouchers",
 		Description: "Fetch account vouchers (GET /users/{id}/vouchers).",
 	}, toolAccountVouchers)
@@ -241,39 +236,6 @@ func toolAccountConsentsUpdate(_ context.Context, _ *mcp.CallToolRequest, in acc
 	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/consents", uid)
 	result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
 		Data:       in.Payload,
-		DataFormat: httpclient.FormatJSON,
-	})
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	return mcpCPWrapFriscoResult(result)
-}
-
-type accountRulesAcceptIn struct {
-	UserID  string         `json:"user_id,omitempty"`
-	RuleIDs []string       `json:"rule_ids,omitempty"`
-	Payload map[string]any `json:"payload,omitempty"`
-}
-
-func toolAccountRulesAccept(_ context.Context, _ *mcp.CallToolRequest, in accountRulesAcceptIn) (*mcp.CallToolResult, mcpCPFriscoToolOut, error) {
-	body := in.Payload
-	if len(body) == 0 {
-		if len(in.RuleIDs) == 0 {
-			return nil, mcpCPFriscoToolOut{}, errors.New("provide payload or rule_ids")
-		}
-		body = map[string]any{"acceptedRules": in.RuleIDs}
-	}
-	s, err := session.Load()
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	uid, err := session.RequireUserID(s, in.UserID)
-	if err != nil {
-		return nil, mcpCPFriscoToolOut{}, err
-	}
-	path := fmt.Sprintf("/app/commerce/api/v1/users/%s/rules", uid)
-	result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
-		Data:       body,
 		DataFormat: httpclient.FormatJSON,
 	})
 	if err != nil {

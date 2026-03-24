@@ -81,7 +81,6 @@ func NewRootCmd() *cobra.Command {
 		newCartCmd(),
 		newReservationCmd(),
 		newAccountCmd(),
-		newOrdersCmd(),
 		newMCPCmd(),
 	)
 	return root

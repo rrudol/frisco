@@ -3,6 +3,9 @@ package commands
 import (
 	"fmt"
 	"math"
+	"os"
+	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -185,7 +188,11 @@ func newOrdersListCmd() *cobra.Command {
 				return printJSON(result)
 			}
 			items := extractOrdersList(result)
-			var compact []map[string]any
+			type orderRow struct {
+				date, status, total, orderID string
+				totalVal                     *float64
+			}
+			var rows []orderRow
 			for _, order := range items {
 				id := order["id"]
 				if id == nil {
@@ -195,37 +202,85 @@ func newOrdersListCmd() *cobra.Command {
 				if st == nil {
 					st = order["orderStatus"]
 				}
-				row := map[string]any{
-					"id":        id,
-					"status":    st,
-					"createdAt": extractOrderDatetime(order),
+				createdAt := extractOrderDatetime(order)
+				date := createdAt
+				if len(date) >= 10 {
+					date = date[:10]
 				}
-				if t := extractOrderTotal(order); t != nil {
-					row["totalPLN"] = math.Round(*t*100) / 100
+				totalPtr := extractOrderTotal(order)
+				totalStr := "—"
+				if totalPtr != nil {
+					totalStr = fmt.Sprintf("%.2f", math.Round(*totalPtr*100)/100)
+				}
+				rows = append(rows, orderRow{
+					date:    date,
+					status:  fmt.Sprint(st),
+					total:   totalStr,
+					orderID: fmt.Sprint(id),
+					totalVal: totalPtr,
+				})
+			}
+			if strings.EqualFold(outputFormat, "json") {
+				var compact []map[string]any
+				for _, r := range rows {
+					row := map[string]any{
+						"id":        r.orderID,
+						"status":    r.status,
+						"createdAt": r.date,
+					}
+					if r.totalVal != nil {
+						row["totalPLN"] = math.Round(*r.totalVal*100) / 100
+					} else {
+						row["totalPLN"] = nil
+					}
+					compact = append(compact, row)
+				}
+				var totalVals []float64
+				for _, r := range rows {
+					if r.totalVal != nil {
+						totalVals = append(totalVals, *r.totalVal)
+					}
+				}
+				summary := map[string]any{"count": len(compact)}
+				if len(totalVals) > 0 {
+					var sum float64
+					for _, v := range totalVals {
+						sum += v
+					}
+					summary["sumPLN"] = math.Round(sum*100) / 100
+					summary["avgPLN"] = math.Round(sum/float64(len(totalVals))*100) / 100
 				} else {
-					row["totalPLN"] = nil
+					summary["sumPLN"] = nil
+					summary["avgPLN"] = nil
 				}
-				compact = append(compact, row)
+				return printJSON(map[string]any{"summary": summary, "orders": compact})
 			}
+			// Table output.
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			_, _ = fmt.Fprintln(w, "date\tstatus\ttotal\torderId")
+			for _, r := range rows {
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.date, r.status, r.total, r.orderID)
+			}
+			_ = w.Flush()
+			// Summary line.
 			var totalVals []float64
-			for _, x := range compact {
-				if v, ok := x["totalPLN"].(float64); ok {
-					totalVals = append(totalVals, v)
+			for _, r := range rows {
+				if r.totalVal != nil {
+					totalVals = append(totalVals, *r.totalVal)
 				}
 			}
-			summary := map[string]any{"count": len(compact)}
 			if len(totalVals) > 0 {
 				var sum float64
 				for _, v := range totalVals {
 					sum += v
 				}
-				summary["sumPLN"] = math.Round(sum*100) / 100
-				summary["avgPLN"] = math.Round(sum/float64(len(totalVals))*100) / 100
+				avg := math.Round(sum/float64(len(totalVals))*100) / 100
+				sum = math.Round(sum*100) / 100
+				fmt.Printf("\n%d orders | total: %.2f PLN | avg: %.2f PLN\n", len(rows), sum, avg)
 			} else {
-				summary["sumPLN"] = nil
-				summary["avgPLN"] = nil
+				fmt.Printf("\n%d orders\n", len(rows))
 			}
-			return printJSON(map[string]any{"summary": summary, "orders": compact})
+			return nil
 		},
 	}
 	c.Flags().IntVar(&pageIndex, "page-index", 1, "")

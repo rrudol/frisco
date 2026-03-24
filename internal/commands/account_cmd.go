@@ -24,10 +24,10 @@ func newAccountCmd() *cobra.Command {
 		newAccountProfileCmd(),
 		newAccountAddressesCmd(),
 		newAccountConsentsCmd(),
-		newAccountRulesCmd(),
 		newAccountVouchersCmd(),
 		newAccountPaymentsCmd(),
 		newAccountMembershipCmd(),
+		newOrdersCmd(),
 	)
 	return cmd
 }
@@ -413,64 +413,6 @@ func newAccountConsentsUpdateCmd() *cobra.Command {
 	c.Flags().StringVar(&payloadFile, "payload-file", "", "")
 	c.Flags().StringVar(&userID, "user-id", "", "")
 	_ = c.MarkFlagRequired("payload-file")
-	return c
-}
-
-func newAccountRulesCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "rules",
-		Short: tr("Rules acceptance.", "Akceptacja regulaminów."),
-	}
-	cmd.AddCommand(newAccountRulesAcceptCmd())
-	return cmd
-}
-
-func newAccountRulesAcceptCmd() *cobra.Command {
-	var userID, payloadFile string
-	var ruleIDs []string
-	c := &cobra.Command{
-		Use:   "accept",
-		Short: tr("Accept rules.", "Akceptuj reguły."),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := session.Load()
-			if err != nil {
-				return err
-			}
-			uid, err := session.RequireUserID(s, userID)
-			if err != nil {
-				return err
-			}
-			var body map[string]any
-			if payloadFile != "" {
-				raw, err := loadJSONFile(payloadFile)
-				if err != nil {
-					return err
-				}
-				var ok bool
-				body, ok = raw.(map[string]any)
-				if !ok {
-					return errors.New(tr("Payload file must contain a JSON object.", "Plik payload musi zawierać obiekt JSON."))
-				}
-			} else {
-				if len(ruleIDs) == 0 {
-					return errors.New(tr("Provide --rule-id or --payload-file.", "Podaj --rule-id albo --payload-file."))
-				}
-				body = map[string]any{"acceptedRules": ruleIDs}
-			}
-			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/rules", uid)
-			result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
-				Data:       body,
-				DataFormat: httpclient.FormatJSON,
-			})
-			if err != nil {
-				return err
-			}
-			return printJSON(result)
-		},
-	}
-	c.Flags().StringArrayVar(&ruleIDs, "rule-id", nil, tr("Repeatable rule UUIDs to accept.", "Powtarzalne UUID reguł do akceptacji."))
-	c.Flags().StringVar(&payloadFile, "payload-file", "", tr("Alternative: full JSON payload.", "Alternatywnie pełny payload JSON."))
-	c.Flags().StringVar(&userID, "user-id", "", "")
 	return c
 }
 
