@@ -29,10 +29,10 @@ func ParseCurl(curlCommand string) (*CurlData, error) {
 		return nil, fmt.Errorf("shlex: %w", err)
 	}
 	if len(tokens) == 0 {
-		return nil, errors.New("Empty curl command.")
+		return nil, errors.New("empty curl command")
 	}
 	if tokens[0] != "curl" {
-		return nil, errors.New("Command must start with 'curl'.")
+		return nil, errors.New("command must start with 'curl'")
 	}
 
 	method := "GET"
@@ -81,7 +81,7 @@ func ParseCurl(curlCommand string) (*CurlData, error) {
 	}
 
 	if rawURL == "" {
-		return nil, errors.New("Could not find URL in curl.")
+		return nil, errors.New("could not find URL in curl command")
 	}
 
 	return &CurlData{Method: method, URL: rawURL, Headers: headers, Body: body}, nil

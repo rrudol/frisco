@@ -112,7 +112,7 @@ func requestJSONWithAutoRefresh(
 	for _, p := range opts.Query {
 		idx := strings.IndexByte(p, '=')
 		if idx < 0 {
-			return nil, fmt.Errorf("Bad query parameter: %s. Expected key=value", p)
+			return nil, fmt.Errorf("bad query parameter: %s, expected key=value", p)
 		}
 		params.Add(p[:idx], p[idx+1:])
 	}
@@ -165,7 +165,7 @@ func requestJSONWithAutoRefresh(
 			case string:
 				bodyReader = strings.NewReader(d)
 			default:
-				return nil, errors.New("For data_format=form provide map or string.")
+				return nil, errors.New("for data_format=form provide map or string")
 			}
 			if !headerKeyPresent(headers, "content-type") {
 				headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -173,11 +173,11 @@ func requestJSONWithAutoRefresh(
 		case FormatRaw:
 			str, ok := opts.Data.(string)
 			if !ok {
-				return nil, errors.New("For data_format=raw provide string.")
+				return nil, errors.New("for data_format=raw provide string")
 			}
 			bodyReader = strings.NewReader(str)
 		default:
-			return nil, errors.New("Unsupported data_format. Use: json, form, raw.")
+			return nil, errors.New("unsupported data_format, use: json, form, raw")
 		}
 	}
 
@@ -191,7 +191,7 @@ func requestJSONWithAutoRefresh(
 
 	resp, err := opts.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Connection error: %w", err)
+		return nil, fmt.Errorf("connection error: %w", err)
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)

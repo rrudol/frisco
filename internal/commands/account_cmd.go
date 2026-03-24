@@ -215,7 +215,7 @@ func newAccountAddressesAddCmd() *cobra.Command {
 			}
 			data, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New("Payload file must contain a JSON object.")
+				return errors.New("payload file must contain a JSON object")
 			}
 			var body map[string]any
 			if _, has := data["shippingAddress"]; has {
@@ -353,15 +353,15 @@ func fetchConsents(s *session.Session, uid string) (map[string]any, error) {
 	}
 	profile, ok := result.(map[string]any)
 	if !ok {
-		return nil, errors.New("Unexpected profile response format.")
+		return nil, errors.New("unexpected profile response format")
 	}
 	prefs, _ := profile["preferences"].(map[string]any)
 	if prefs == nil {
-		return nil, errors.New("No preferences found in profile.")
+		return nil, errors.New("no preferences found in profile")
 	}
 	consents, _ := prefs["consents"].(map[string]any)
 	if consents == nil {
-		return nil, errors.New("No consents found in profile.")
+		return nil, errors.New("no consents found in profile")
 	}
 	return consents, nil
 }
@@ -401,7 +401,7 @@ func newAccountConsentsUpdateCmd() *cobra.Command {
 			}
 			body, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New("Payload file must contain a JSON object.")
+				return errors.New("payload file must contain a JSON object")
 			}
 			path := fmt.Sprintf("/app/commerce/api/v1/users/%s/consents", uid)
 			result, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
@@ -591,7 +591,7 @@ func newAccountMembershipPointsShowCmd() *cobra.Command {
 			}
 			page, ok := first.(map[string]any)
 			if !ok {
-				return errors.New("Unexpected response format.")
+				return errors.New("unexpected response format")
 			}
 			pageCount := int(toFloat(page["pageCount"]))
 			allItems := toSlice(page["items"])

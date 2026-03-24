@@ -27,7 +27,7 @@ func NewRootCmd() *cobra.Command {
 			}
 			if format != "table" && format != "json" {
 				return fmt.Errorf(
-					"Unsupported --format: %s (use table or json)",
+					"unsupported --format: %s (use table or json)",
 					format,
 				)
 			}

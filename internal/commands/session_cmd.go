@@ -88,7 +88,7 @@ func newSessionVerifyCmd() *cobra.Command {
 			}
 			if session.TokenString(s) == "" {
 				return errors.New(
-					"No token in session. Use 'session from-curl' or 'session login'.",
+					"no token in session. Use 'session from-curl' or 'session login'",
 				)
 			}
 			uid, err := session.RequireUserID(s, userID)
@@ -150,7 +150,7 @@ func newSessionRefreshTokenCmd() *cobra.Command {
 				rt = refreshTokenString(s)
 			}
 			if rt == "" {
-				return errors.New("Missing refresh token. Use --refresh-token or load session with session from-curl.")
+				return errors.New("missing refresh token. Use --refresh-token or load session with session from-curl")
 			}
 			payload := map[string]any{
 				"grant_type":    "refresh_token",
@@ -215,7 +215,7 @@ func newSessionLoginCmd() *cobra.Command {
 				loginURL = defaultLoginURL
 			}
 			if _, err := url.ParseRequestURI(loginURL); err != nil {
-				return fmt.Errorf("Invalid --login-url: %w", err)
+				return fmt.Errorf("invalid --login-url: %w", err)
 			}
 			if timeoutSec <= 0 {
 				return errors.New("--timeout must be > 0")
@@ -279,7 +279,7 @@ func newSessionLoginCmd() *cobra.Command {
 				network.Enable(),
 				chromedp.Navigate(loginURL),
 			); err != nil {
-				return fmt.Errorf("Could not start login browser: %w", err)
+				return fmt.Errorf("could not start login browser: %w", err)
 			}
 			_, _ = fmt.Fprintln(
 				cmd.OutOrStdout(),
@@ -335,7 +335,7 @@ func newSessionLoginCmd() *cobra.Command {
 			mu.Unlock()
 
 			if accessToken == "" {
-				return errors.New("Access token not detected. Try again and after login open account/cart page to trigger API requests.")
+				return errors.New("access token not detected, try again and after login open account/cart page to trigger API requests")
 			}
 
 			s.BaseURL = baseURL

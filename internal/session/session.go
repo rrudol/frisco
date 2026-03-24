@@ -118,7 +118,7 @@ func RequireUserID(s *Session, explicit string) (string, error) {
 	}
 	uid := UserIDString(s)
 	if uid == "" {
-		return "", errors.New("Missing user_id. Import session with 'session from-curl' using /users/{id}/... endpoint or pass --user-id.")
+		return "", errors.New("missing user_id: import session with 'session from-curl' using /users/{id}/... endpoint or pass --user-id")
 	}
 	return uid, nil
 }

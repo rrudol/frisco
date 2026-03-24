@@ -79,20 +79,20 @@ func newReservationCalendarCmd() *cobra.Command {
 			}
 			shippingAddress, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New("Address file must contain a JSON object.")
+				return errors.New("address file must contain a JSON object")
 			}
 			body := map[string]any{"shippingAddress": shippingAddress}
 			var path string
 			if date != "" {
 				parts := strings.Split(date, "-")
 				if len(parts) != 3 {
-					return errors.New("Date must be in format YYYY-M-D or YYYY-MM-DD")
+					return errors.New("date must be in format YYYY-M-D or YYYY-MM-DD")
 				}
 				y, err1 := strconv.Atoi(parts[0])
 				m, err2 := strconv.Atoi(parts[1])
 				d, err3 := strconv.Atoi(parts[2])
 				if err1 != nil || err2 != nil || err3 != nil {
-					return errors.New("Date must be in format YYYY-M-D or YYYY-MM-DD")
+					return errors.New("date must be in format YYYY-M-D or YYYY-MM-DD")
 				}
 				path = fmt.Sprintf("/app/commerce/api/v2/users/%s/calendar/Van/%d/%d/%d", uid, y, m, d)
 			} else {
@@ -125,7 +125,7 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 	}
 	list, ok := data.([]any)
 	if !ok || len(list) == 0 {
-		return nil, errors.New("No saved user addresses.")
+		return nil, errors.New("no saved user addresses")
 	}
 	var preferred map[string]any
 	for _, item := range list {
@@ -145,7 +145,7 @@ func getShippingAddressFromAccount(s *session.Session, userID string) (map[strin
 		}
 	}
 	if chosen == nil {
-		return nil, errors.New("No saved user addresses.")
+		return nil, errors.New("no saved user addresses")
 	}
 	if sa, ok := chosen["shippingAddress"].(map[string]any); ok {
 		return sa, nil
@@ -296,7 +296,7 @@ func newReservationSlotsCmd() *cobra.Command {
 				var ok bool
 				shippingAddress, ok = raw.(map[string]any)
 				if !ok {
-					return errors.New("Address file must contain a JSON object.")
+					return errors.New("address file must contain a JSON object")
 				}
 			} else {
 				shippingAddress, err = getShippingAddressFromAccount(s, uid)
@@ -379,7 +379,7 @@ func newReservationReserveCmd() *cobra.Command {
 				var ok bool
 				shippingAddress, ok = raw.(map[string]any)
 				if !ok {
-					return errors.New("Address file must contain a JSON object.")
+					return errors.New("address file must contain a JSON object")
 				}
 			} else {
 				shippingAddress, err = getShippingAddressFromAccount(s, uid)
@@ -398,7 +398,7 @@ func newReservationReserveCmd() *cobra.Command {
 			}
 			windows := extractReservableWindows(dayData)
 			if len(windows) == 0 {
-				return errors.New("No reservable slots for given date.")
+				return errors.New("no reservable slots for given date")
 			}
 			var selected map[string]any
 			var possible []string
@@ -416,7 +416,7 @@ func newReservationReserveCmd() *cobra.Command {
 				}
 			}
 			if selected == nil {
-				return fmt.Errorf("Slot %s-%s not found for %s. Available: %s",
+				return fmt.Errorf("slot %s-%s not found for %s. Available: %s",
 					fromTime, toTime, date, strings.Join(possible, ", "))
 			}
 			payload := map[string]any{
@@ -487,7 +487,7 @@ func newReservationPlanCmd() *cobra.Command {
 			}
 			payload, ok := raw.(map[string]any)
 			if !ok {
-				return errors.New("Payload file must contain a JSON object.")
+				return errors.New("payload file must contain a JSON object")
 			}
 			path := fmt.Sprintf("/app/commerce/api/v2/users/%s/cart/reservation", uid)
 			result, err := httpclient.RequestJSON(s, "POST", path, httpclient.RequestOpts{

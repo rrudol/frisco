@@ -281,9 +281,7 @@ func TestLocalizedString_NonStringType_Int(t *testing.T) {
 
 func TestLocalizedString_NonStringType_MapPrefix(t *testing.T) {
 	// A raw Go map value printed by fmt.Sprint starts with "map[" — should return ""
-	type dummy struct{}
-	// We need something that fmt.Sprint produces starting with "map["
-	// Use a nested map[int]int which is not map[string]any
+	// Use a nested map[int]int which is not map[string]any.
 	val := map[int]int{1: 2}
 	got := LocalizedString(val)
 	if got != "" {

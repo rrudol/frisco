@@ -42,7 +42,7 @@ func newCartAddBatchCmd() *cobra.Command {
 				return err
 			}
 			if len(lines) == 0 {
-				return errors.New("No products in file.")
+				return errors.New("no products in file")
 			}
 			if dryRun {
 				return printCartBatchDryRun(lines)
@@ -59,7 +59,7 @@ func newCartAddBatchCmd() *cobra.Command {
 			}
 			products := mergedCartProductsSlice(qtyMap)
 			if len(products) == 0 {
-				return errors.New("No products to put in cart.")
+				return errors.New("no products to put in cart")
 			}
 			body := map[string]any{"products": products}
 			last, err := httpclient.RequestJSON(s, "PUT", path, httpclient.RequestOpts{
@@ -143,12 +143,12 @@ func parseCartBatchJSON(data []byte) (map[string]int, error) {
 			rawList = items
 		} else {
 			return nil, errors.New(
-				"JSON must be an array or an object with \"items\" array.",
+				"jSON must be an array or an object with \"items\" array",
 			)
 		}
 	default:
 		return nil, errors.New(
-			"JSON must be an array or an object with \"items\" array.",
+			"jSON must be an array or an object with \"items\" array",
 		)
 	}
 	out := make(map[string]int)
