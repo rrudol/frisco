@@ -52,6 +52,34 @@ frisco orders list --all-pages
 frisco xhr call --method GET --path-or-url "/app/commerce/api/v1/users/123/cart"
 ```
 
+## Język (i18n)
+
+CLI wspiera dwa języki:
+
+- `en` (domyślny)
+- `pl`
+
+Ustawienie języka:
+
+```bash
+frisco --lang en --help
+frisco --lang pl --help
+```
+
+Możesz też ustawić zmienną środowiskową:
+
+```bash
+export FRISCO_LANG=pl
+frisco --help
+```
+
+Priorytet wyboru języka:
+
+1. flaga `--lang`
+2. `FRISCO_LANG`
+3. `LC_ALL` / `LC_MESSAGES` / `LANG`
+4. fallback `en`
+
 ## Dane sesji
 
 Sesja jest zapisywana lokalnie w:

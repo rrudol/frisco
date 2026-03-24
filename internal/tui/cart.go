@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/rrudol/frisco/internal/httpclient"
+	"github.com/rrudol/frisco/internal/i18n"
 	"github.com/rrudol/frisco/internal/session"
 )
 
@@ -131,16 +132,19 @@ func (m cartModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m cartModel) View() string {
 	var b strings.Builder
-	b.WriteString("Koszyk — ↑↓ wybór  +/− ilość  d usuń  r odśwież  q wyjście\n")
+	b.WriteString(i18n.T(
+		"Cart — ↑↓ select  +/− quantity  d delete  r refresh  q quit\n",
+		"Koszyk — ↑↓ wybór  +/− ilość  d usuń  r odśwież  q wyjście\n",
+	))
 	if m.busy {
-		b.WriteString("\nŁadowanie…\n")
+		b.WriteString(i18n.T("\nLoading...\n", "\nŁadowanie...\n"))
 	}
 	b.WriteByte('\n')
 	if len(m.items) == 0 && !m.busy && m.errText == "" {
-		b.WriteString("(koszyk pusty)\n")
+		b.WriteString(i18n.T("(cart is empty)\n", "(koszyk pusty)\n"))
 	} else {
 		w := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "NAZWA\tPRODUCT ID\tILOŚĆ\tCENA JEDN.")
+		_, _ = fmt.Fprintln(w, i18n.T("NAME\tPRODUCT ID\tQTY\tUNIT PRICE", "NAZWA\tPRODUCT ID\tILOŚĆ\tCENA JEDN."))
 		for i, line := range m.items {
 			prefix := "  "
 			if i == m.cursor {
@@ -160,7 +164,7 @@ func (m cartModel) View() string {
 		_ = w.Flush()
 	}
 	if m.errText != "" {
-		b.WriteString("\nBłąd: ")
+		b.WriteString(i18n.T("\nError: ", "\nBłąd: "))
 		b.WriteString(m.errText)
 		b.WriteByte('\n')
 	}
@@ -243,7 +247,7 @@ func parseCartPayload(data any) ([]cartLine, error) {
 	}
 	root, ok := data.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("oczekiwano obiektu JSON koszyka")
+		return nil, fmt.Errorf(i18n.T("expected cart JSON object", "oczekiwano obiektu JSON koszyka"))
 	}
 	arr := firstArray(root,
 		"products", "items", "lineItems", "cartItems", "lines", "Lines",

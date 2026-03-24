@@ -7,7 +7,6 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20260321001828-e3e3800016bc
 	github.com/chromedp/chromedp v0.15.1
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
-	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/spf13/cobra v1.8.1
 )
 
