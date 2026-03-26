@@ -1,8 +1,33 @@
 {
+  "manifest_version": "0.3",
   "name": "frisco",
+  "display_name": "Frisco.pl",
   "version": "0.0.0",
   "description": "Frisco.pl grocery delivery — product search, cart, orders, reservations.",
-  "transport": "stdio",
-  "command": "server/frisco",
-  "args": ["mcp"]
+  "author": {
+    "name": "Rafał Rudol"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rrudol/frisco.git"
+  },
+  "license": "MIT",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/frisco",
+    "mcp_config": {
+      "command": "${__dirname}/server/frisco",
+      "args": ["mcp"],
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/frisco.exe",
+          "args": ["mcp"]
+        }
+      }
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"]
+  }
 }
