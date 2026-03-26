@@ -101,6 +101,8 @@ frisco account orders list --all-pages --format json
 
 Download the latest `.mcpb` bundle for your platform from [Releases](https://github.com/rrudol/frisco/releases), then in Claude Desktop go to **Extensions → Advanced Settings → Install Extensions** and select the downloaded file.
 
+**Login:** Ask Claude to log you in to Frisco (e.g. "zaloguj mnie do Frisco"). A Chrome window will open — log in on frisco.pl and navigate to your cart or account page. The session is captured automatically and saved for future use. Requires Chrome/Chromium.
+
 <details>
 <summary>Manual setup</summary>
 
